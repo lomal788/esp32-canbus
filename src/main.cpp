@@ -3,6 +3,8 @@
 
 #include <driver/twai.h>
 #include <driver/gpio.h>
+#include <driver/adc.h>
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -97,6 +99,57 @@ static void rx_task_loop(void *arg){
 // 	.connected_cb = mqtt_connected_callback
 // };
 
+static void test(void *arg){
+  // SIM7600E-H LTE
+
+  // 100, 501 B캔 잠금
+
+  // 전압 읽기
+  // int sensorValue = analogRead(A0);   // read the input on analog pin 0 
+  // int voltage = sensorValue * (18.2 / 1024 * 1);   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 18.2V)
+  // lora.write(voltage);
+
+  // CH 0 GPIO 36
+  // + 100k ohm to 36 pin
+  // between gnd, + 16k ohm
+  // max 24v , float analogRead(36) / 4096 * 24 * (15942 / 16000)
+  // analogRead(36) / 4093 * 30 * 1000
+  // https://ohmslawcalculator.com/voltage-divider-calculator
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_0,ADC_ATTEN_DB_0);
+  int val = adc1_get_raw(ADC1_CHANNEL_0);
+
+  // digitalWrite(switchPin1, LOW); // 배터리 전원인가
+  // delay(3000);
+  // digitalWrite(switchPin2, LOW); // 락버튼 1회 누름
+  // delay(1000);
+  // digitalWrite(switchPin2, HIGH); // 락버튼 뗌
+  // delay(1000);
+  // digitalWrite(switchPin2, LOW); // 락버튼 1회 누름
+  // delay(1000);
+  // digitalWrite(switchPin2, HIGH); // 락버튼 뗌
+  // delay(4000);
+  // digitalWrite(switchPin1, HIGH); // 배터리 전원끊음
+}
+
+static void key_fob_task(void *arg){
+  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
+  int level = 0;
+
+  while(1){
+    if(level == 1){
+      printf("Smart Key on\n");
+      gpio_set_level(GPIO_NUM_21, 0);
+    }else{
+      printf("Smart Key off\n");
+      gpio_set_level(GPIO_NUM_21, 1);
+    }
+    level = !level;
+
+    vTaskDelay(1500 / portTICK_PERIOD_MS);
+  }
+}
+
 extern "C" void app_main(void){
   esp_err_t can_init_status;
   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_5, GPIO_NUM_4, TWAI_MODE_NORMAL);
@@ -129,6 +182,9 @@ extern "C" void app_main(void){
   wifi_connection();
 	server_initiation();
   mqtt_start();
+
+  // xTaskCreate(&key_fob_task, "keyFob_task", 8192, NULL, 5, NULL);
+
 
   xTaskCreate(&rx_task_loop, "hello_task", 8192, NULL, 5, NULL);
 }
