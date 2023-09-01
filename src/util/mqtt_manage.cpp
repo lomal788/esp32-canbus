@@ -1,5 +1,6 @@
 #include <mqtt_client.h>
 #include "mqtt_manage.h"
+#include "my_config.h"
 
 // esp_mqtt_client_handle_t mqtt_client;
 static bool mqtt_connected = false;
@@ -58,10 +59,14 @@ void mqtt_start(){
   const esp_mqtt_client_config_t mqtt_cfg = {
       .broker = {
         .address = {
-          .uri = "mqtt://broker.hivemq.com",
-          .port = 1883,
+          .uri = MQTT_SERVER_IP,
+          .port = MQTT_SERVER_PORT,
         }
         // .verification.certificate = (const char *)mqtt_eclipse_org_pem_start,
+      },
+      .credentials = {
+        // .username = "",
+        // .client_id = MQTT_CLIENT_ID,
       },
   };
 

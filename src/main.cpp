@@ -90,34 +90,10 @@ static void rx_task_loop(void *arg){
   }
 }
 
-// mqtt_settings settings = {
-// 	.host = MQTT_SERVER_IP,
-// 	.port = 8883,
-// 	.client_id = MQTT_CLIENT_ID,
-// 	.clean_session = 0,
-// 	.keepalive = 120,
-// 	.connected_cb = mqtt_connected_callback
-// };
-
 static void test(void *arg){
-  // SIM7600E-H LTE
+  // SIM7600E LTE
 
   // 100, 501 B캔 잠금
-
-  // 전압 읽기
-  // int sensorValue = analogRead(A0);   // read the input on analog pin 0 
-  // int voltage = sensorValue * (18.2 / 1024 * 1);   // Convert the analog reading (which goes from 0 - 1023) to a voltage (0 - 18.2V)
-  // lora.write(voltage);
-
-  // CH 0 GPIO 36
-  // + 100k ohm to 36 pin
-  // between gnd, + 16k ohm
-  // max 24v , float analogRead(36) / 4096 * 24 * (15942 / 16000)
-  // analogRead(36) / 4093 * 30 * 1000
-  // https://ohmslawcalculator.com/voltage-divider-calculator
-  adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten(ADC1_CHANNEL_0,ADC_ATTEN_DB_0);
-  int val = adc1_get_raw(ADC1_CHANNEL_0);
 
   // digitalWrite(switchPin1, LOW); // 배터리 전원인가
   // delay(3000);
@@ -150,6 +126,29 @@ static void key_fob_task(void *arg){
   }
 }
 
+  // CH 0 GPIO 36
+  // + 100k ohm to 36 pin
+  // between gnd, + 16k ohm
+  // max 24v , float analogRead(36) / 4096 * 24 * (15942 / 16000)
+  // analogRead(36) / 4093 * 30 * 1000
+  // https://ohmslawcalculator.com/voltage-divider-calculator
+static void get_battery_voltage(){
+  int average = 0;
+
+  adc1_config_width(ADC_WIDTH_BIT_12);
+  adc1_config_channel_atten(ADC1_CHANNEL_0,ADC_ATTEN_DB_0);
+
+  while(1){
+    for (int i = 0; i < 10; i++) average = average + adc1_get_raw(ADC1_CHANNEL_0);
+    average = average / 10;
+
+    // average = average / 4093 * 30 * 1000;
+
+    // 5 Min
+    vTaskDelay((1000 * 60 * 5) / portTICK_PERIOD_MS);
+  }
+}
+
 extern "C" void app_main(void){
   esp_err_t can_init_status;
   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_5, GPIO_NUM_4, TWAI_MODE_NORMAL);
@@ -159,7 +158,6 @@ extern "C" void app_main(void){
   g_config.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
   g_config.rx_queue_len = 32;
   g_config.tx_queue_len = 32;
-
 
   // Install TWAI driver
   can_init_status = twai_driver_install(&g_config, &t_config, &f_config);
@@ -184,7 +182,6 @@ extern "C" void app_main(void){
   mqtt_start();
 
   // xTaskCreate(&key_fob_task, "keyFob_task", 8192, NULL, 5, NULL);
-
 
   xTaskCreate(&rx_task_loop, "hello_task", 8192, NULL, 5, NULL);
 }
