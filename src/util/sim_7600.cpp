@@ -152,10 +152,10 @@ void sendSimATCmd(const char* cmd){
 }
 
 void subscribe_mqtt(const char* nm){
-  const char* sub_cmd = (char*) malloc(100);
+  char* sub_cmd = (char*) malloc(100);
 
   sprintf(sub_cmd, "AT+CMQTTSUB=0,%d,1,1", strlen(nm));
-  sendSimATCmd(sub_cmd);
+  sendSimATCmd((const char*) sub_cmd);
   vTaskDelay(50 / portTICK_PERIOD_MS);
   sendSimATMsg(nm);
 }
@@ -235,3 +235,7 @@ void rx_task(void *arg){
   free(rx_buffer);
   vTaskDelete(NULL);
 }
+
+  // init_sim();
+  // xTaskCreate(&rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+  // send_topic_mqtt("test/1234", "abcasd");
