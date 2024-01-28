@@ -66,9 +66,6 @@ void init_twai(){
   // }
 }
 
-
-uint8_t msg_counter = 0;
-
 inline void to_bytes(uint64_t src, uint8_t* dst) {
     for(uint8_t i = 0; i < 8; i++) {
         dst[7-i] = src & 0xFF;
@@ -91,21 +88,20 @@ void twai_rx_task(void *arg){
     uint8_t f_count  = can_status.msgs_to_rx;
 
     if (f_count == 0) {
-      msg_counter++;
       if( now % 2000 == 0){
-        printf("\n");
-        printf("TWAI Status: %d \n", can_status.state);
-        printf("TWAI Messages to Receive: %lu \n", can_status.msgs_to_rx);
-        printf("TWAI Messages to Send: %lu \n", can_status.msgs_to_tx);
-        printf("TWAI Messages Receive Errors: %lu \n", can_status.rx_error_counter);
-        printf("TWAI Messages Receive Missed: %lu \n", can_status.rx_missed_count);
-        printf("TWAI Messages Bus errors: %lu \n", can_status.bus_error_count);
-        printf("TWAI Messages ARB Lost: %lu \n", can_status.arb_lost_count);
+        // printf("\n");
+        // printf("TWAI Status: %d \n", can_status.state);
+        // printf("TWAI Messages to Receive: %lu \n", can_status.msgs_to_rx);
+        // printf("TWAI Messages to Send: %lu \n", can_status.msgs_to_tx);
+        // printf("TWAI Messages Receive Errors: %lu \n", can_status.rx_error_counter);
+        // printf("TWAI Messages Receive Missed: %lu \n", can_status.rx_missed_count);
+        // printf("TWAI Messages Bus errors: %lu \n", can_status.bus_error_count);
+        // printf("TWAI Messages ARB Lost: %lu \n", can_status.arb_lost_count);
 
-        printf("TWAI statuss: %d \n", twai_get_status_info(&can_status));
-        printf("TWAI rx error: %d \n", twai_receive(&message, pdMS_TO_TICKS(0)));
-        printf("TWAI length Code : %d \n", message.data_length_code);
-        printf("TWAI flags : %lu \n", message.flags);
+        // printf("TWAI statuss: %d \n", twai_get_status_info(&can_status));
+        // printf("TWAI rx error: %d \n", twai_receive(&message, pdMS_TO_TICKS(0)));
+        // printf("TWAI length Code : %d \n", message.data_length_code);
+        // printf("TWAI flags : %lu \n", message.flags);
 
         memset(&tx_can, 0x00, sizeof(twai_message_t));
 
