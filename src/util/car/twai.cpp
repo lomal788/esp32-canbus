@@ -16,12 +16,17 @@
 
 #define TAG "main"
 
+const unsigned int doorId = 16; // Door lock/unlock ID 0x010
+const unsigned int doorCatchId = 274; // Door Catch Push ID 0x112
+const unsigned int doorStateId = 360; // Door Open State ID 0x168
+const unsigned int keyInId = 273; // KeyOn Acc Start State 0x111
 
 
 void init_twai(){
   esp_err_t can_init_status;
 
   twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_5, GPIO_NUM_4, TWAI_MODE_NORMAL);
+  // twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
   twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
   twai_timing_config_t timing_config{};
 
@@ -104,15 +109,22 @@ void twai_rx_task(void *arg){
         // printf("TWAI flags : %lu \n", message.flags);
 
         memset(&tx_can, 0x00, sizeof(twai_message_t));
+        unsigned char tx_dataaa[8] = {0x1,0x2,0x3,0x4,0xf,0xa,0xc,0xd};
 
-        tx_can.data_length_code = 8;
-        tx_can.identifier = 0x07E9;
+        for (int i=0; i < sizeof(tx_dataaa); i++) {
+          tx_can.data[i] = tx_dataaa[i];
+        }
+
+        tx_can.data_length_code = sizeof(tx_dataaa);
+        tx_can.identifier = 0x07E8;
         tx_can.extd = 0;
         tx_can.rtr = 0;
         tx_can.ss = 1; // Always single shot
         tx_can.self = 0;
         tx_can.dlc_non_comp = 0;
+        // to_bytes(tx_dataa, tx_can.data);
 
+        // to_bytes(eng_rq1_tcm_tx.raw, tx_can.data);
         twai_transmit(&tx_can, 5);
 
         // tx_can.identifier = 0xAAAA;
@@ -145,8 +157,22 @@ void twai_rx_task(void *arg){
             tmp |= (uint64_t)message.data[i] << (8*(7-i));
           }
 
-          printf("%lu %d %llu %llu ", message.identifier, message.data_length_code, tmp, now);
-          printf("\n");
+          if(message.identifier == 790) {
+            printf("%lu %d %llu %llu ", message.identifier, message.data_length_code, tmp, now);
+            // printf("%d", message.data[0]);
+            printf("\n");
+          // 시동 확인
+          }else if( message.identifier == keyInId) {
+            if(message.data[0] == 64 || message.data[0] == 128 || message.data[0] == 130){
+              // 시동 KeyIn & On
+            }else{
+              // KeyOut & Off
+            }
+          // 도어 상태 확인
+          }else if( message.identifier == doorStateId){
+
+          }
+
         }
         vTaskDelay(2 / portTICK_PERIOD_MS);
     }
