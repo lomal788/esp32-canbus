@@ -23,6 +23,12 @@ Car::~Car() {
     // this->gearbox_ref->diag_regain_control(); // Re-enable engine starting
 }
 
+/*
+
+0x010 DoorId
+
+*/
+
 static void test(void *arg){
 
   // 100, 501 B캔 잠금
@@ -61,6 +67,25 @@ static void relay_control_task(void *arg){
   }
 }
 
+static void v12Relay_task(void *arg){
+
+  int level = 0;
+  gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT_OD);
+
+  while(1){
+    
+    if(level == 1){
+      printf("Relay on\n");
+      gpio_set_level(GPIO_NUM_18, 0);
+    }else{
+      printf("Relay off\n");
+      gpio_set_level(GPIO_NUM_18, 1);
+    }
+
+    level = !level;
+    vTaskDelay(1500 / portTICK_PERIOD_MS);
+  }
+}
 
 static void key_fob_task(void *arg){
   gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
