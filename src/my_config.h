@@ -1,3 +1,4 @@
+
 #ifndef CONFIG
 #define CONFIG
 
@@ -7,5 +8,7 @@
 #define MQTT_SERVER_IP "mqtt://broker.hivemq.com"
 #define MQTT_SERVER_PORT 1883
 #define MQTT_CLIENT_ID "espmqtt"
+
+#define PATH "/adityabangde/ESP32-OTA-Update-via-GitHub/dev/ota_code.bin"
 
 #endif
