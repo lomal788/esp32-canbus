@@ -6,21 +6,126 @@
 #include "driver/uart.h"
 #include <driver/adc.h>
 #include <driver/gpio.h>
+#include <driver/twai.h>
 #include "car.h"
 
 #include <esp_system.h>
 #include <esp_event.h>
 #include "esp_err.h"
 #include "esp_log.h"
+#include <stdint.h>
 
 #define TAG "main"
 
+uint64_t FRAME_DATA[8];
+typedef union {
+	uint64_t raw;
+	uint8_t bytes[8];
+	struct {
+		/** CRC Checksum Byte 1 to 7 Accordinging to SAE J1850 / CRC Checksum Byte 1 - 7 to SAE J1850 **/
+		uint8_t CRC_ENG_RQ2_TCM: 8;
+		 /** BITFIELD PADDING. DO NOT CHANGE **/
+		uint8_t __PADDING1__: 4;
+		/** Message Counter / Message Counter **/
+		uint8_t MC_ENG_RQ2_TCM: 4;
+		/** Transmission Crankly Torque Loss / Loss Torque **/
+		uint8_t TxTrqLoss: 8;
+		/** Crackish Torque to Wheel Torque ratio / factor crankshaft torque to wheel torque **/
+		uint16_t EngWhlTrqRatio_TCM: 14;
+		 /** BITFIELD PADDING. DO NOT CHANGE **/
+		uint8_t __PADDING2__: 2;
+		/** Actual Transmission Ratio (CVT) / Translation Translation (CVT) **/
+		uint8_t TxRatio: 8;
+	} __attribute__((packed));
+	/** Gets CAN ID of ENG_RQ2_TCM_EGS53 **/
+	uint32_t get_canid(){ return 0x0015; }
+} ENG_RQ2_TCM_EGS53;
 
-Car::Car() {
+
+Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx_time_ms, baud) {
+
 }
 
-Car::~Car() {
-    // this->gearbox_ref->diag_regain_control(); // Re-enable engine starting
+void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp) {
+
+  // printf(id+" "+data+" "+ timestamp +"\n");
+  // ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "CAN Rx : "+id + " " + timestamp);
+
+  FRAME_DATA[0] = data;
+  ENG_RQ2_TCM_EGS53 dest;
+  dest.raw = FRAME_DATA[0];
+
+  printf("%d ", dest.CRC_ENG_RQ2_TCM);
+
+  printf("%lx", id);
+  printf(" val = 0x%" PRIx64 "\n", data);
+
+  
+
+    // if (this->ms51.import_frames(data, id, timestamp)) {
+    // } else if (this->esp51.import_frames(data, id, timestamp)) {
+    // } else if (this->ewm.import_frames(data, id, timestamp)) {
+    // }
+}
+
+void Car::tx_frames() {
+
+  // tx.identifier = 0xAAAA;
+  // tx.extd = 1;
+  // tx.data_length_code = 4;
+  // for (int i = 0; i < 4; i++) {
+  //     tx.data[i] = 0;
+  // }
+  char tx_dataaa[8] = {0x1,0x2,0x3,0x4,0xf,0xa,0xc,0x1d};
+
+  ENG_RQ2_TCM_EGS53 dest;
+  dest.raw = FRAME_DATA[0];
+
+  for (int i=0; i < sizeof(tx_dataaa); i++) {
+    // if(i == 1){
+    //   // uint8_t srccc = dest.CRC_ENG_RQ2_TCM & 0xFF;
+    //   // srccc >>= 8;
+    //   // uint32_t val = (dest.CRC_ENG_RQ2_TCM[0] << 16) + (dest.CRC_ENG_RQ2_TCM[1] << 8) + dest.CRC_ENG_RQ2_TCM[2];
+    //   // print()
+    //   tx.data[i] = 0x00;
+    // }else {
+    // printf("%d", i);
+    // if(i == 2){
+    //   tx_dataaa[i] = dest.CRC_ENG_RQ2_TCM; 
+    // }
+    tx.data[i] = tx_dataaa[i];
+    // }
+  }
+
+  //  tx.data[2] = 0x11;
+  // printf("%d", sizeof(tx_dataaa));
+
+  tx.identifier = 0x390;
+  // tx.data_length_code = sizeof(tx_dataaa);
+  tx.data_length_code = 8;
+  // tx.extd = 0;
+  // tx.rtr = 0;
+  // tx.ss = 1; // Always single shot
+  // tx.self = 0;
+  // tx.dlc_non_comp = 0;
+  // to_bytes(tx_dataa, tx_can.data);
+
+  // to_bytes(eng_rq1_tcm_tx.raw, tx_can.data);
+  // twai_transmit(&tx, 5);
+
+  esp_err_t can_tx_result = twai_transmit(&tx, 5);
+  // printf("%d \n",can_tx_result);
+  if(can_tx_result != 0){
+    printf("%d \n",can_tx_result);
+  }
+
+
+}
+
+void Car::on_rx_done(uint64_t now_ts) {
+    // if(ShifterStyle::TRRS == VEHICLE_CONFIG.shifter_style) {
+    //     (static_cast<ShifterTrrs*>(shifter))->update_shifter_position(now_ts);
+    // }
 }
 
 /*
