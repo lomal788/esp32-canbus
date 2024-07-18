@@ -18,10 +18,17 @@
 #include "util/http_server.h"
 #include "util/mqtt_manage.h"
 #include "util/wifi_config.h"
-#include "util/car/twai.h"
+#include "util/car/twai_base.h"
+#include "util/car/car.h"
 #include "my_config.h"
 
 extern "C" void app_main(void) {
+
+  twai_can_hal = new Car("CAN_BASE", 20, 500000);
+
+  if (!twai_can_hal->begin_tasks()) {
+
+  }
 
   // init_twai();
 
@@ -46,5 +53,4 @@ extern "C" void app_main(void) {
 
   // init_twai();
   // xTaskCreate(&twai_rx_task, "can_rx_task", 8192, NULL, 6, NULL);
-
 }
