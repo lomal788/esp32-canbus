@@ -3,11 +3,15 @@
 
 #include <nvs_flash.h>
 #include <nvs.h>
+#include "twai_base.h"
 
-class Car {
+class Car: public BaseCan{
     public:
-        Car();
-        ~Car();
+        explicit Car(const char* name, uint8_t tx_time_ms, uint32_t baud);
+    protected:
+        void tx_frames() override;
+        void on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp) override;
+        void on_rx_done(uint64_t now_ts) override;
     private:
         bool ingition = false;
         bool keyfob = false;
@@ -15,7 +19,6 @@ class Car {
         int outTemp = 0;
         int inTemp = 0;
         int setTemp = 0;
-
 };
 
 
