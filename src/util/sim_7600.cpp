@@ -184,9 +184,13 @@ void init_sim(){
   ESP_ERROR_CHECK(uart_set_pin(UART, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
   
   // sendSimATCmd("AT+CRESET");
-  // sendSimATCmd("AT+CPIN?");
-  // sendSimATCmd("AT+COPS?");
-  // sendSimATCmd("AT+CPSI?");
+  // vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+CPIN?");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+COPS?");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+CPSI?");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   
 
   // uart_intr_config_t uart_intr = {
@@ -201,16 +205,23 @@ void init_sim(){
 
 void http_req(){
   sendSimATCmd("AT+HTTPINIT");
-  sendSimATCmd("AT+HTTPPARA=\"URL\", \"http://webhook.site/991d65bd-ce0d-4d4d-8cdc-16ec65795d73\"");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+HTTPPARA=\"URL\", \"https://webhook.site/ffb09ddf-bdf9-40e3-919f-2bbe4c4d59b9\"");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+HTTPACTION=0");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+HTTPREAD?");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+HTTPREAD=0,140");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+HTTPTERM");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
 }
 // AT+CPIN?
 
 void init_mqtt(){
   
-  sendSimATCmd("AT+CPSI?");
+  // sendSimATCmd("AT+CPSI?");
   sendSimATCmd("AT+CGREG?");
   sendSimATCmd("ATE0");
   vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -218,11 +229,12 @@ void init_mqtt(){
   vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+CSOCKSETPN=1");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CIPMODE=0");
-  vTaskDelay(100 / portTICK_PERIOD_MS);
+  // sendSimATCmd("AT+CIPMODE=0");
+  // vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+NETOPEN");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CIPMODE=0");
+  sendSimATCmd("AT+NETOPEN?");
+  // sendSimATCmd("AT+CIPMODE=0");
   vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+CMQTTCONNECT?");
   vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -230,6 +242,7 @@ void init_mqtt(){
   vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+CMQTTACCQ=0,\"SIM7600_client\"");
   vTaskDelay(100 / portTICK_PERIOD_MS);
+  
 }
 
 void disconnect_mqtt(){
@@ -243,10 +256,14 @@ void disconnect_mqtt(){
 
 void connect_mqtt_server(){
   sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://broker.mqtt.cool:1883\",60,1");
+  // sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://mqtt-dashboard.com:8884\",60,1");
+  
   vTaskDelay(500 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CMQTTSUB=0,9,1,1");
-  vTaskDelay(500 / portTICK_PERIOD_MS);
-  sendSimATCmd("test/1234");
+  
+  sendSimATCmd("AT+CMQTTCONNECT?");
+  // sendSimATCmd("AT+CMQTTSUB=0,9,1,1");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  // sendSimATCmd("test/1234"); // \x1A -> close
 }
 
 void sendSimATMsg(const char* cmd){
@@ -270,9 +287,9 @@ void sendSimATCmd(const char* cmd){
 void subscribe_mqtt(const char* nm){
   char* sub_cmd = (char*) malloc(100);
 
-  sprintf(sub_cmd, "AT+CMQTTSUB=0,%d,1,1", strlen(nm));
+  sprintf(sub_cmd, "AT+CMQTTSUB=0,%d,1", strlen(nm));
   sendSimATCmd((const char*) sub_cmd);
-  vTaskDelay(50 / portTICK_PERIOD_MS);
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATMsg(nm);
 }
 
@@ -359,6 +376,68 @@ void rx_task(void *arg){
 
       // String aa = "aa";
 
+      if(strstr((const char*) rx_buffer, "PB DONE") ||
+      strstr((const char*) rx_buffer, "+CPSI: LTE,Online")
+      ){
+        vTaskDelay(5000 / portTICK_PERIOD_MS);
+          sendSimATCmd("AT+CFUN=1");
+          vTaskDelay(100 / portTICK_PERIOD_MS);
+          sendSimATCmd("AT+CGACT=1,1");
+          vTaskDelay(100 / portTICK_PERIOD_MS);
+      }
+
+      if(strstr((const char*) rx_buffer, "AT+CGACT=1,1")){
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+        //   sendSimATCmd("AT+CFUN=1");
+        //   vTaskDelay(100 / portTICK_PERIOD_MS);
+        //   sendSimATCmd("AT+CGACT=1,1");
+        //   vTaskDelay(100 / portTICK_PERIOD_MS);
+        init_mqtt();
+        // connect_mqtt_server();
+      }
+
+      if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23")){
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+        //   sendSimATCmd("AT+CFUN=1");
+        //   vTaskDelay(100 / portTICK_PERIOD_MS);
+        //   sendSimATCmd("AT+CGACT=1,1");
+        //   vTaskDelay(100 / portTICK_PERIOD_MS);
+        // init_mqtt();
+        connect_mqtt_server();
+      }
+
+      if(strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,0") ||
+      strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,")
+      ){
+        // vTaskDelay(5000 / portTICK_PERIOD_MS);
+        //   sendSimATCmd("AT+CFUN=1");
+        //   vTaskDelay(100 / portTICK_PERIOD_MS);
+        //   sendSimATCmd("AT+CGACT=1,1");
+        //   vTaskDelay(100 / portTICK_PERIOD_MS);
+        // init_mqtt();
+        // connect_mqtt_server();
+        subscribe_mqtt("test/1234");
+        // send_topic_mqtt("test/1234", (const char*) "aasd");
+      }
+
+      if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
+        connect_mqtt_server();
+      }
+
+      if(strstr((const char*) rx_buffer, "+CIPEVENT: NETWORK CLOSED") ||
+        (
+        strstr((const char*) rx_buffer, "+CMQTTCONNECT") &&
+        strstr((const char*) rx_buffer, "ERROR")
+        )
+       ){
+        // init_mqtt();
+        // connect_mqtt_server();
+      }
+      // else if(strstr((const char*) rx_buffer, "AT+CIPMODE=0")){
+      //   init_mqtt();
+      //   connect_mqtt_server();
+      // }
+
       // TOPIC Receive
       if(strstr((const char*) rx_buffer, "+CMQTTRXPAYLOAD: 0") && strstr((const char*) rx_buffer, "+CMQTTRXEND: 0")){
         char* pch = NULL;
@@ -390,10 +469,13 @@ void rx_task(void *arg){
           send_topic_mqtt("test/1234", (const char*) topicNm);
           vTaskDelay(100 / portTICK_PERIOD_MS);
           send_topic_mqtt("test/1234", (const char*) payLoad);
-
+          
           if(strncmp((const char *) payLoad, "hello aa", strlen((const char *) payLoad)) == 0){
             vTaskDelay(50 / portTICK_PERIOD_MS);
             send_topic_mqtt("test/1234", "hello aa i'm aab");
+          }else if(strncmp((const char *) payLoad, "HTTP REQUEST", strlen((const char *) payLoad)) == 0){
+            vTaskDelay(50 / portTICK_PERIOD_MS);
+            http_req();
           }
         }
       }
