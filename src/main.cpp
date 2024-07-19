@@ -24,11 +24,13 @@
 
 extern "C" void app_main(void) {
 
+  // DUAL CAN BUS 
   twai_can_hal = new Car("CAN_BASE", 20, 500000);
 
   if (!twai_can_hal->begin_tasks()) {
 
   }
+  // DUAL CAN BUS 
 
   // init_twai();
 
@@ -43,10 +45,11 @@ extern "C" void app_main(void) {
   // if (data_read > 0) {
   // }
 
+  // SIM SERVICE
   // init_sim();
-  // init_mqtt();
-  // connect_mqtt_server();
-  // subscribe_mqtt("test/1234");
+  // xTaskCreate(&rx_task, "mqtt_sim_rx_task", 1024 * 8, NULL, 6, NULL);
+  // SIM SERVICE
+
 
   // xTaskCreate(&rx_task, "can_rx_task", 1024 * 8, NULL, 6, NULL);
   // xTaskCreate(&call_sim_spam_task, "call_spam_task", 1024*4, NULL, 5, NULL);
