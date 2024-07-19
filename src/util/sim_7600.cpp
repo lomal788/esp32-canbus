@@ -28,6 +28,7 @@ static const int RX_BUF_SIZE = 1024;
 
 // #define UART UART_NUM_2
 
+
 char* rtrim(char* s) {
  
 char t[MAX_STR_LEN];
@@ -191,6 +192,22 @@ void init_sim(){
   vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+CPSI?");
   vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+CGPS=0");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  // sendSimATCmd("AT+CGNSSMODE=15,1");
+  // vTaskDelay(100 / portTICK_PERIOD_MS);
+  // sendSimATCmd("AT+CGPSNMEA=200191");
+  // vTaskDelay(100 / portTICK_PERIOD_MS);
+  // sendSimATCmd("AT+CGPSNMEARATE=1");
+  // vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+CGPS=1,1");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  // sendSimATCmd("AT+CGPSINFOCFG=1,31");
+  // vTaskDelay(100 / portTICK_PERIOD_MS);
+
+  sendSimATCmd("AT+CGPS=?");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  
   
 
   // uart_intr_config_t uart_intr = {
@@ -378,6 +395,7 @@ void rx_task(void *arg){
 
       if(strstr((const char*) rx_buffer, "PB DONE") ||
       strstr((const char*) rx_buffer, "+CPSI: LTE,Online")
+      // strstr((const char*) rx_buffer, "RDY")
       ){
         vTaskDelay(5000 / portTICK_PERIOD_MS);
           sendSimATCmd("AT+CFUN=1");
@@ -396,7 +414,9 @@ void rx_task(void *arg){
         // connect_mqtt_server();
       }
 
-      if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23")){
+      if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23") ||
+      strstr((const char*) rx_buffer, "+CMQTTSTART: 0")
+      ){
         // vTaskDelay(5000 / portTICK_PERIOD_MS);
         //   sendSimATCmd("AT+CFUN=1");
         //   vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -422,6 +442,14 @@ void rx_task(void *arg){
 
       if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
         connect_mqtt_server();
+      }
+
+      if(strstr((const char*) rx_buffer, "+CGPSINFO: 0")){
+        
+        sendSimATCmd("AT+CGPS=1,1");
+        vTaskDelay(50 / portTICK_PERIOD_MS);
+        sendSimATCmd("AT+CGPS?");
+        vTaskDelay(50 / portTICK_PERIOD_MS);
       }
 
       if(strstr((const char*) rx_buffer, "+CIPEVENT: NETWORK CLOSED") ||
@@ -467,16 +495,25 @@ void rx_task(void *arg){
 
         if(strncmp((const char *) topicNm, "test/1234", strlen((const char *) topicNm)) == 0){
           send_topic_mqtt("test/1234", (const char*) topicNm);
-          vTaskDelay(100 / portTICK_PERIOD_MS);
-          send_topic_mqtt("test/1234", (const char*) payLoad);
+          // vTaskDelay(100 / portTICK_PERIOD_MS);
+          // send_topic_mqtt("test/1234", (const char*) payLoad);
           
           if(strncmp((const char *) payLoad, "hello aa", strlen((const char *) payLoad)) == 0){
-            vTaskDelay(50 / portTICK_PERIOD_MS);
+            // vTaskDelay(50 / portTICK_PERIOD_MS);
             send_topic_mqtt("test/1234", "hello aa i'm aab");
           }else if(strncmp((const char *) payLoad, "HTTP REQUEST", strlen((const char *) payLoad)) == 0){
-            vTaskDelay(50 / portTICK_PERIOD_MS);
+            // vTaskDelay(50 / portTICK_PERIOD_MS);
             http_req();
+          }else if(strncmp((const char *) payLoad, "GET GPS", strlen((const char *) payLoad)) == 0){
+            sendSimATCmd("AT+CGPSINFO?");
+            // vTaskDelay(50 / portTICK_PERIOD_MS);
+            sendSimATCmd("AT+CGPSINFO");
+            // vTaskDelay(100 / portTICK_PERIOD_MS);
+            
+            // http_req();
           }
+
+          
         }
       }
 
@@ -489,7 +526,7 @@ void rx_task(void *arg){
   }
 
   free(rx_buffer);
-  vTaskDelete(NULL);
+  // vTaskDelete(NULL);
 }
 
   // init_sim();
