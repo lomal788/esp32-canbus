@@ -44,9 +44,14 @@ typedef union {
 
 Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx_time_ms, baud) {
 
+  tx.extd = 0;
+  tx.rtr = 0;
+  tx.ss = 0; // Always single shot
+  tx.self = 0;
+  tx.dlc_non_comp = 0;
 }
 
-void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp) {
+void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) {
 
   // printf(id+" "+data+" "+ timestamp +"\n");
   // ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "CAN Rx : "+id + " " + timestamp);
@@ -56,19 +61,18 @@ void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timesta
   dest.raw = FRAME_DATA[0];
 
   printf("%d ", dest.CRC_ENG_RQ2_TCM);
+  this->aabbcc = dest.CRC_ENG_RQ2_TCM;
 
   printf("%lx", id);
-  printf(" val = 0x%" PRIx64 "\n", data);
-
-  
+  printf(" val = 0x%" PRIx64, data);
+  printf(" time Stamp = 0x%" PRIx64 "\n", timestamp);
 
     // if (this->ms51.import_frames(data, id, timestamp)) {
     // } else if (this->esp51.import_frames(data, id, timestamp)) {
-    // } else if (this->ewm.import_frames(data, id, timestamp)) {
     // }
 }
 
-void Car::tx_frames() {
+void Car::tx_frames(uint8_t bus) {
 
   // tx.identifier = 0xAAAA;
   // tx.extd = 1;
@@ -81,7 +85,7 @@ void Car::tx_frames() {
   ENG_RQ2_TCM_EGS53 dest;
   dest.raw = FRAME_DATA[0];
 
-  for (int i=0; i < sizeof(tx_dataaa); i++) {
+  for (int i=0; i < 4; i++) {
     // if(i == 1){
     //   // uint8_t srccc = dest.CRC_ENG_RQ2_TCM & 0xFF;
     //   // srccc >>= 8;
@@ -90,36 +94,41 @@ void Car::tx_frames() {
     //   tx.data[i] = 0x00;
     // }else {
     // printf("%d", i);
-    // if(i == 2){
-    //   tx_dataaa[i] = dest.CRC_ENG_RQ2_TCM; 
-    // }
-    tx.data[i] = tx_dataaa[i];
-    // }
+    if(i == 3){
+      tx.data[i] = this->alive_cnt;
+    }else{
+      tx.data[i] = 0x00;
+    }
   }
 
   //  tx.data[2] = 0x11;
   // printf("%d", sizeof(tx_dataaa));
+  // printf("%d \n",alive_cnt);
 
-  tx.identifier = 0x390;
+  tx.identifier = 0x0218;
   // tx.data_length_code = sizeof(tx_dataaa);
   tx.data_length_code = 8;
-  // tx.extd = 0;
-  // tx.rtr = 0;
-  // tx.ss = 1; // Always single shot
-  // tx.self = 0;
-  // tx.dlc_non_comp = 0;
-  // to_bytes(tx_dataa, tx_can.data);
+  // to_bytes(dest.raw, tx.data);
 
   // to_bytes(eng_rq1_tcm_tx.raw, tx_can.data);
   // twai_transmit(&tx, 5);
 
-  esp_err_t can_tx_result = twai_transmit(&tx, 5);
-  // printf("%d \n",can_tx_result);
-  if(can_tx_result != 0){
-    printf("%d \n",can_tx_result);
+  // Base 50 msg per Second
+
+  if(counter == 50){
+    counter = 0;
   }
 
-
+  // 20 Hz
+  if (counter < 20) {
+    esp_err_t can_tx_result = twai_transmit(&tx, 5);
+    // printf("%d \n",can_tx_result);
+    if(can_tx_result != 0){
+      printf("%d \n",can_tx_result);
+    }
+  }
+  
+  counter++;
 }
 
 void Car::on_rx_done(uint64_t now_ts) {
