@@ -35,7 +35,7 @@ BaseCan::BaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud) {
   ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "Booting CAN Layer");
   esp_err_t can_init_status;
 
-  twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(this->can_tx_pin, this->can_rx_pin, TWAI_MODE_NORMAL);
+  twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(this->can_tx_pin[0], this->can_rx_pin[0], TWAI_MODE_NORMAL);
   // twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
   twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
   twai_timing_config_t timing_config{};
@@ -43,8 +43,10 @@ BaseCan::BaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud) {
   g_config.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
   // g_config.clkout_io = TWAI_IO_UNUSED;
   // g_config.bus_off_io = TWAI_IO_UNUSED;
+  g_config.controller_id = 0;
   g_config.rx_queue_len = 32;
   g_config.tx_queue_len = 32;
+  
   // g_config.alerts_enabled = TWAI_ALERT_NONE;
   // g_config.clkout_divider = 0;
   // timing_config = TWAI_TIMING_CONFIG_1MBITS();
@@ -52,9 +54,11 @@ BaseCan::BaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud) {
 
   // gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
   // gpio_set_direction(GPIO_NUM_22, GPIO_MODE_INPUT);
+  g_config.controller_id = 0;
 
   // Install TWAI driver
-  can_init_status = twai_driver_install(&g_config, &timing_config, &f_config);
+  can_init_status = twai_driver_install_v2(&g_config, &timing_config, &f_config, &this->twai_handler[0]);
+
   if (can_init_status == ESP_OK) {
     printf("Driver installed\n");
   }else{
@@ -62,14 +66,40 @@ BaseCan::BaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud) {
     return;
   }
 
-  this->can_init_status = twai_start();
-  if (can_init_status == ESP_OK){
-    printf("Driver started\n");
+  this->can_init_status = twai_start_v2(this->twai_handler[0]);
+
+  if (this->can_init_status == ESP_OK) {
+    printf("started\n");
   }else{
-    printf("Failed to start driver\n");
+    printf("Failed start\n");
     return;
   }
 
+  g_config.controller_id = 1;
+  g_config.tx_io = this->can_tx_pin[1];
+  g_config.rx_io = this->can_rx_pin[1];
+  can_init_status = twai_driver_install_v2(&g_config, &timing_config, &f_config, &this->twai_handler[1]);
+  if (can_init_status == ESP_OK) {
+    printf("Driver installed2\n");
+  }else{
+    printf("Failed to install driver2\n");
+    return;
+  }
+
+  this->can_init_status = twai_start_v2(this->twai_handler[1]);
+  if (can_init_status == ESP_OK){
+    printf("Driver started2\n");
+  }else{
+    printf("Failed to start driver2\n");
+    return;
+  }
+
+    // Now set the constants for the Tx message.
+    this->tx.extd = 0;
+    this->tx.rtr = 0;
+    this->tx.ss = 0; // Always single shot
+    this->tx.self = 0;
+    this->tx.dlc_non_comp = 0;
 }
 
 esp_err_t BaseCan::init_state() const {
@@ -85,8 +115,8 @@ BaseCan::~BaseCan() {
     }
     // Delete CAN
     if (this->can_init_status == ESP_OK) {
-        twai_stop();
-        twai_driver_uninstall();
+        twai_stop_v2(this->twai_handler[0]);
+        twai_driver_uninstall_v2(this->twai_handler[0]);
     }
 }
 
@@ -94,6 +124,19 @@ bool BaseCan::begin_tasks(){
     if (this->can_init_status != ESP_OK) {
         return false;
     }
+
+
+    if (this->tx_task == nullptr) {
+        ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "Starting CAN Tx task");
+        if (xTaskCreate(this->start_tx_task_loop, "TWAI_CAN_TX", 4096, this, 5, &this->tx_task) != pdPASS) {
+            ESP_LOG_LEVEL(ESP_LOG_ERROR, this->name, "CAN Tx task creation failed!");
+            return false;
+        }
+    }else{
+      ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "ss CAN Rx task");
+      printf("tx_take arelady exist");
+    }
+
     // Prevent starting again
     if (this->rx_task == nullptr) {
         ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "Starting CAN Rx task");
@@ -103,38 +146,37 @@ bool BaseCan::begin_tasks(){
         }
     }
 
-    if (this->tx_task == nullptr) {
-        ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "Starting CAN Tx task");
-        if (xTaskCreate(this->start_tx_task_loop, "TWAI_CAN_TX", 4096, this, 5, &this->tx_task) != pdPASS) {
-            ESP_LOG_LEVEL(ESP_LOG_ERROR, this->name, "CAN Tx task creation failed!");
-            return false;
-        }
-    }
+
     return true; // Ready!
 }
 
 inline void to_bytes(uint64_t src, uint8_t* dst) {
-    for(uint8_t i = 0; i < 8; i++) {
-        dst[7-i] = src & 0xFF;
-        src >>= 8;
-    }
+  for(uint8_t i = 0; i < 8; i++) {
+      dst[7-i] = src & 0xFF;
+      src >>= 8;
+  }
 }
 
 [[noreturn]]
 void BaseCan::tx_task_loop() {
-    while(true) {
-        if (this->send_messages) {
-            this->tx_frames();
-        }
-        vTaskDelay(this->tx_time_ms / portTICK_PERIOD_MS);
-    }
+  while(true) {
+    if (this->send_messages[0]) {
+          this->tx_frames(0);
+      }
+    // for(uint8_t i = 0; i < 2; i++){
+    //   if (this->send_messages[i]) {
+    //       this->tx_frames(i);
+    //   }
+    // }
+      vTaskDelay(this->tx_time_ms / portTICK_PERIOD_MS);
+  }
 }
 
 [[noreturn]]
 void BaseCan::rx_task_loop(){
   twai_message_t message;
   twai_message_t rx;
-  twai_message_t tx_can;
+  // twai_message_t tx_can;
   twai_status_info_t can_status;
   uint8_t i;
   uint64_t tmp;
@@ -142,12 +184,14 @@ void BaseCan::rx_task_loop(){
   while (true) {
     // esp_err_t aa = 
     uint64_t now = esp_timer_get_time() / 1000;
+    // twai_get_status_info_v2(this->twai_handler[0], &can_status);
     twai_get_status_info(&can_status);
     uint8_t f_count  = can_status.msgs_to_rx;
 
     this->alive_cnt+=1;
 
     if (f_count == 0) {
+      // printf("%d", f_count);
       if( now % 2000 == 0){
         // printf("\n");
         // printf("TWAI Status: %d \n", can_status.state);
@@ -204,7 +248,7 @@ void BaseCan::rx_task_loop(){
       vTaskDelay(4 / portTICK_PERIOD_MS);
     }else{
       for(uint8_t x = 0; x < f_count; x++) { // Read all frames
-        if (twai_receive(&rx, pdMS_TO_TICKS(0)) == ESP_OK && rx.data_length_code != 0 && rx.flags == 0) {
+        if (twai_receive_v2(this->twai_handler[0], &rx, pdMS_TO_TICKS(0)) == ESP_OK && rx.data_length_code != 0 && rx.flags == 0) {
           if (this->diag_rx_id != 0 && rx.identifier == this->diag_rx_id) {
             // ISO-TP Diag endpoint
             if (this->diag_rx_queue != nullptr && rx.data_length_code == 8) {
@@ -218,7 +262,7 @@ void BaseCan::rx_task_loop(){
             for(i = 0; i < rx.data_length_code; i++) {
                 tmp |= (uint64_t)rx.data[i] << (8*(7-i));
             }
-            this->on_rx_frame(rx.identifier, rx.data_length_code, tmp, now);
+            this->on_rx_frame(rx.identifier, rx.data_length_code, tmp, now, 0);
           }
         }
       }
