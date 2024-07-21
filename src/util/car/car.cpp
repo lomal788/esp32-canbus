@@ -70,6 +70,20 @@ void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timesta
     // if (this->ms51.import_frames(data, id, timestamp)) {
     // } else if (this->esp51.import_frames(data, id, timestamp)) {
     // }
+
+  // EMS11
+  // if(id == 0x316){
+  //   // data 1byte 45 == then Ignition
+  //   // this->ignition = true;
+  // }else if(id == 0x690){ // CLU2
+  //   // 00 off, 02 ACC, 03 ON, 04 Cranking
+  //   // this->car_status = ;
+  // }else if(id == 0x545){ // EMS14
+  //   // VB
+  //   // this->batt = ;
+  // }
+
+
 }
 
 void Car::tx_frames(uint8_t bus) {
@@ -119,12 +133,12 @@ void Car::tx_frames(uint8_t bus) {
     counter = 0;
   }
 
-  // 20 Hz
-  if (counter < 20) {
+  // Should be 20 Hz but I decided to send 17hz
+  if ( counter % 3 == 0) {
     esp_err_t can_tx_result = twai_transmit(&tx, 5);
     // printf("%d \n",can_tx_result);
     if(can_tx_result != 0){
-      printf("%d \n",can_tx_result);
+      printf("Fail to Send Can msg %d \n",can_tx_result);
     }
   }
   
@@ -138,9 +152,7 @@ void Car::on_rx_done(uint64_t now_ts) {
 }
 
 /*
-
 0x010 DoorId
-
 */
 
 static void test(void *arg){
