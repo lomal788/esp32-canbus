@@ -13,8 +13,11 @@ class Car: public BaseCan{
         void on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) override;
         void on_rx_done(uint64_t now_ts) override;
     private:
-        bool ingition = false;
         bool keyfob = false;
+        bool remote_start = false;
+        uint32_t remote_start_time = 0;
+        uint8_t car_status = 0; // 0 off, 1 acc , 2 on
+        bool ingition = false;
         uint16_t batt = 0;
         int outTemp = 0;
         int inTemp = 0;
