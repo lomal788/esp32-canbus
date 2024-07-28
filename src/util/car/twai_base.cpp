@@ -52,45 +52,77 @@ BaseCan::BaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud) {
   // timing_config = TWAI_TIMING_CONFIG_1MBITS();
   timing_config = TWAI_TIMING_CONFIG_500KBITS();
 
-  // gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
-  // gpio_set_direction(GPIO_NUM_22, GPIO_MODE_INPUT);
-  g_config.controller_id = 0;
-
   // Install TWAI driver
   can_init_status = twai_driver_install_v2(&g_config, &timing_config, &f_config, &this->twai_handler[0]);
-
   if (can_init_status == ESP_OK) {
     printf("Driver installed\n");
+    this->can_init_status = twai_start_v2(this->twai_handler[0]);
+    if (this->can_init_status == ESP_OK) {
+      printf("Calling Setup\n");
+    }else{
+      printf("Failed to start twai : %d \n", this->can_init_status);
+    }
   }else{
-    printf("Failed to install driver\n");
+    printf("Failed to install driver %d \n", can_init_status);
     return;
   }
 
-  this->can_init_status = twai_start_v2(this->twai_handler[0]);
+  // return;
+  // g_config = TWAI_GENERAL_CONFIG_DEFAULT(this->can_tx_pin[1], this->can_rx_pin[1], TWAI_MODE_NORMAL);
+  // gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
+  // gpio_set_direction(GPIO_NUM_3, GPIO_MODE_INPUT);
 
-  if (this->can_init_status == ESP_OK) {
-    printf("started\n");
-  }else{
-    printf("Failed start\n");
-    return;
-  }
+  twai_general_config_t g_config2 = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
+  // twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
+  twai_filter_config_t f_config2 = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+  twai_timing_config_t timing_config2{};
 
+  g_config2.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
+  // g_config.clkout_io = TWAI_IO_UNUSED;
+  // g_config.bus_off_io = TWAI_IO_UNUSED;
+  g_config2.rx_queue_len = 32;
+  g_config2.tx_queue_len = 32;
+  g_config2.controller_id = 1;
   g_config.controller_id = 1;
   g_config.tx_io = this->can_tx_pin[1];
   g_config.rx_io = this->can_rx_pin[1];
-  can_init_status = twai_driver_install_v2(&g_config, &timing_config, &f_config, &this->twai_handler[1]);
-  if (can_init_status == ESP_OK) {
-    printf("Driver installed2\n");
-  }else{
-    printf("Failed to install driver2\n");
-    return;
-  }
+  // g_config.tx_io = GPIO_NUM_23;
+  // g_config.rx_io = GPIO_NUM_22;
+  // g_config2.clkout_io = TWAI_IO_UNUSED;
+  // g_config2.bus_off_io = TWAI_IO_UNUSED;
+  // g_config2.clkout_divider = 0;
+  // g_config.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
+  timing_config = TWAI_TIMING_CONFIG_500KBITS();
 
-  this->can_init_status = twai_start_v2(this->twai_handler[1]);
-  if (can_init_status == ESP_OK){
-    printf("Driver started2\n");
+  twai_handle_t twai_handler3;
+
+  // SOC_TWAI_CONTROLLER_NUM = 2;
+  
+  can_init_status = twai_driver_install_v2(&g_config2, &timing_config2, &f_config2, &twai_handler3);
+
+  // twai_status_info_t status_info2;
+  // twai_get_status_info_v2(twai_handler3,&status_info2);
+  // printf("TWAI Status: %d \n", status_info2.state);
+  // printf("TWAI Messages to Receive: %lu \n", status_info2.msgs_to_rx);
+  // printf("TWAI Messages to Send: %lu \n", status_info2.msgs_to_tx);
+  // printf("TWAI Messages Receive Errors: %lu \n", status_info2.rx_error_counter);
+  // printf("TWAI Messages Receive Missed: %lu \n", status_info2.rx_missed_count);
+  // printf("TWAI Messages Bus errors: %lu \n", status_info2.bus_error_count);
+  // printf("TWAI Messages ARB Lost: %lu \n", status_info2.arb_lost_count);
+
+
+  if (can_init_status == ESP_OK) {
+    printf("Driver installed\n");
+    this->can_init_status = twai_start_v2(twai_handler3);
+
+    if (this->can_init_status == ESP_OK) {
+      printf("Calling Setup\n");
+    }else{
+      printf("Failed to start twai 2 : %d \n", this->can_init_status);
+      return;
+    }
   }else{
-    printf("Failed to start driver2\n");
+    printf("Failed to install driver %d \n", can_init_status);
     return;
   }
 
@@ -140,6 +172,7 @@ bool BaseCan::begin_tasks(){
     // Prevent starting again
     if (this->rx_task == nullptr) {
         ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "Starting CAN Rx task");
+        // xTaskCreatePinnedToCore(twai_receive_task, "TWAI_rx", 4096, NULL, RX_TASK_PRIO, NULL, tskNO_AFFINITY);
         if (xTaskCreate(this->start_rx_task_loop, "TWAI_CAN_RX", 8192, this, 5, &this->rx_task) != pdPASS) {
             ESP_LOG_LEVEL(ESP_LOG_ERROR, this->name, "CAN Rx task creation failed!");
             return false;
