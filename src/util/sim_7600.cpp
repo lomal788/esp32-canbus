@@ -200,6 +200,13 @@ void init_sim(){
   // vTaskDelay(100 / portTICK_PERIOD_MS);
   // sendSimATCmd("AT+CGPSNMEARATE=1");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
+  
+  sendSimATCmd("AT+CVAUXV=3050");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+CVAUXS=1");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+CVAUXS=0");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+CGPS=1,1");
   vTaskDelay(100 / portTICK_PERIOD_MS);
   // sendSimATCmd("AT+CGPSINFOCFG=1,31");
@@ -207,6 +214,9 @@ void init_sim(){
 
   sendSimATCmd("AT+CGPS=?");
   vTaskDelay(100 / portTICK_PERIOD_MS);
+  sendSimATCmd("AT+CGPSINFO");
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  
   
   
 
