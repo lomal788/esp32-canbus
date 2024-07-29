@@ -17,8 +17,8 @@
 #define PIN_NUM_INTERRUPT 21
 
 
-TaskHandle_t tx_task = nullptr;
-TaskHandle_t rx_task = nullptr;
+TaskHandle_t can_spi_tx_task = nullptr;
+TaskHandle_t can_spi_rx_task = nullptr;
 
 bool SPI_Init(void) {
 	printf("Hello from SPI_Init!\n\r");
@@ -119,16 +119,16 @@ void spi_tx_task_loop(void *arg) {
 	// CAN_FRAME frame;
 // 	// MCP2515_readMessage
 
-	irq = MCP2515_getInterrupts();
+	// irq = MCP2515_getInterrupts();
 
-	if (irq & CANINTF_RX0IF) {
-		if (MCP2515_readMessage(RXB0, &frame2) == ERROR_OK) {
-			printf("get data %lu - %d \n" , frame2.can_id,(unsigned char) frame2.can_dlc);
-			// frame contains received message
-		}
-	}else{
-        vTaskDelay(4 / portTICK_PERIOD_MS);
-    }
+	// if (irq & CANINTF_RX0IF) {
+	// 	if (MCP2515_readMessage(RXB0, &frame2) == ERROR_OK) {
+	// 		printf("get data %lu - %d \n" , frame2.can_id,(unsigned char) frame2.can_dlc);
+	// 		// frame contains received message
+	// 	}
+	// }else{
+    //     vTaskDelay(4 / portTICK_PERIOD_MS);
+    // }
 
 	// if (irq & CANINTF_RX1IF) {
 	// 	if (MCP2515_readMessage(RXB1, &frame2) == ERROR_OK) {
@@ -137,7 +137,7 @@ void spi_tx_task_loop(void *arg) {
 	// 	}
 	// }
 
-    vTaskDelay(2 / portTICK_PERIOD_MS);
+    // vTaskDelay(2 / portTICK_PERIOD_MS);
   }
 }
 
@@ -146,17 +146,18 @@ void spi_rx_task_loop(void *arg) {
   uint8_t irq;
 
   while(true){
+    vTaskDelay(10);
     irq = MCP2515_getInterrupts();
 
 	if (irq & CANINTF_RX0IF) {
-		if (MCP2515_readMessage(RXB0, &frame) == ERROR_OK) {
+		if (MCP2515_readMessage(RXBn_t::RXB0, &frame) == ERROR_OK) {
 			printf("get data %lu - %d \n" , frame.can_id,(unsigned char) frame.can_dlc);
 			// frame contains received message
 		}
 	}
 
 	if (irq & CANINTF_RX1IF) {
-		if (MCP2515_readMessage(RXB1, &frame) == ERROR_OK) {
+		if (MCP2515_readMessage(RXBn_t::RXB1, &frame) == ERROR_OK) {
 			printf("get data2 %lu - %d \n" , frame.can_id,(unsigned char) frame.can_dlc);
 			// frame contains received message	
 		}
@@ -169,21 +170,27 @@ void spi_rx_task_loop(void *arg) {
 
 void spi_can_init(){
 
+  printf("HELLO");
   MCP2515_init();
   SPI_Init();
   MCP2515_reset();
   MCP2515_setBitrate(CAN_500KBPS, MCP_8MHZ);
   MCP2515_setNormalMode();
+  vTaskDelay(100);
 
-  ESP_LOG_LEVEL(ESP_LOG_INFO, "SPI ", "Starting CAN Tx task");
-  if (xTaskCreate(spi_tx_task_loop, "SPI_CAN_TX", 4096, NULL, 5, &tx_task) != pdPASS) {
-    ESP_LOG_LEVEL(ESP_LOG_ERROR, "SPI", "CAN Tx task creation failed!");
-  }
-
-//   ESP_LOG_LEVEL(ESP_LOG_INFO, "SPI ", "Starting CAN Rx task");
-//   if (xTaskCreate(spi_rx_task_loop, "SPI_CAN_RX", 4096, NULL, 5, &rx_task) != pdPASS) {
-//     ESP_LOG_LEVEL(ESP_LOG_ERROR, "SPI", "CAN Rx task creation failed!");
+//   if (can_spi_tx_task == nullptr) {
+//     ESP_LOG_LEVEL(ESP_LOG_INFO, "SPI ", "Starting CAN Tx task");
+//     if (xTaskCreate(spi_tx_task_loop, "SPI_CAN_TX", 2048, NULL, 5, &can_spi_tx_task) != pdPASS) {
+//         ESP_LOG_LEVEL(ESP_LOG_ERROR, "SPI", "CAN Tx task creation failed!");
+//     }
 //   }
 
-  return;
+  if (can_spi_rx_task == nullptr) {
+    ESP_LOG_LEVEL(ESP_LOG_INFO, "SPI ", "Starting CAN rx task");
+    if (xTaskCreate(spi_rx_task_loop, "SPI_CAN_RX", 2048, NULL, 5, &can_spi_rx_task) != pdPASS) {
+        ESP_LOG_LEVEL(ESP_LOG_ERROR, "SPI", "CAN SPI Rx task creation failed!");
+    }
+  }
+
+//   return;
 }
