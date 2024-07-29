@@ -72,59 +72,59 @@ BaseCan::BaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud) {
   // gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
   // gpio_set_direction(GPIO_NUM_3, GPIO_MODE_INPUT);
 
-  twai_general_config_t g_config2 = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
-  // twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
-  twai_filter_config_t f_config2 = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-  twai_timing_config_t timing_config2{};
+  // twai_general_config_t g_config2 = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
+  // // twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(GPIO_NUM_23, GPIO_NUM_22, TWAI_MODE_NORMAL);
+  // twai_filter_config_t f_config2 = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+  // twai_timing_config_t timing_config2{};
 
-  g_config2.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
-  // g_config.clkout_io = TWAI_IO_UNUSED;
-  // g_config.bus_off_io = TWAI_IO_UNUSED;
-  g_config2.rx_queue_len = 32;
-  g_config2.tx_queue_len = 32;
-  g_config2.controller_id = 1;
-  g_config.controller_id = 1;
-  g_config.tx_io = this->can_tx_pin[1];
-  g_config.rx_io = this->can_rx_pin[1];
-  // g_config.tx_io = GPIO_NUM_23;
-  // g_config.rx_io = GPIO_NUM_22;
-  // g_config2.clkout_io = TWAI_IO_UNUSED;
-  // g_config2.bus_off_io = TWAI_IO_UNUSED;
-  // g_config2.clkout_divider = 0;
-  // g_config.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
-  timing_config = TWAI_TIMING_CONFIG_500KBITS();
+  // g_config2.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
+  // // g_config.clkout_io = TWAI_IO_UNUSED;
+  // // g_config.bus_off_io = TWAI_IO_UNUSED;
+  // g_config2.rx_queue_len = 32;
+  // g_config2.tx_queue_len = 32;
+  // g_config2.controller_id = 1;
+  // g_config.controller_id = 1;
+  // g_config.tx_io = this->can_tx_pin[1];
+  // g_config.rx_io = this->can_rx_pin[1];
+  // // g_config.tx_io = GPIO_NUM_23;
+  // // g_config.rx_io = GPIO_NUM_22;
+  // // g_config2.clkout_io = TWAI_IO_UNUSED;
+  // // g_config2.bus_off_io = TWAI_IO_UNUSED;
+  // // g_config2.clkout_divider = 0;
+  // // g_config.intr_flags = ESP_INTR_FLAG_IRAM; // Set TWAI interrupt to IRAM (Enabled in menuconfig)!
+  // timing_config = TWAI_TIMING_CONFIG_500KBITS();
 
-  twai_handle_t twai_handler3;
+  // twai_handle_t twai_handler3;
 
-  // SOC_TWAI_CONTROLLER_NUM = 2;
+  // // SOC_TWAI_CONTROLLER_NUM = 2;
   
-  can_init_status = twai_driver_install_v2(&g_config2, &timing_config2, &f_config2, &twai_handler3);
+  // can_init_status = twai_driver_install_v2(&g_config2, &timing_config2, &f_config2, &twai_handler3);
 
-  // twai_status_info_t status_info2;
-  // twai_get_status_info_v2(twai_handler3,&status_info2);
-  // printf("TWAI Status: %d \n", status_info2.state);
-  // printf("TWAI Messages to Receive: %lu \n", status_info2.msgs_to_rx);
-  // printf("TWAI Messages to Send: %lu \n", status_info2.msgs_to_tx);
-  // printf("TWAI Messages Receive Errors: %lu \n", status_info2.rx_error_counter);
-  // printf("TWAI Messages Receive Missed: %lu \n", status_info2.rx_missed_count);
-  // printf("TWAI Messages Bus errors: %lu \n", status_info2.bus_error_count);
-  // printf("TWAI Messages ARB Lost: %lu \n", status_info2.arb_lost_count);
+  // // twai_status_info_t status_info2;
+  // // twai_get_status_info_v2(twai_handler3,&status_info2);
+  // // printf("TWAI Status: %d \n", status_info2.state);
+  // // printf("TWAI Messages to Receive: %lu \n", status_info2.msgs_to_rx);
+  // // printf("TWAI Messages to Send: %lu \n", status_info2.msgs_to_tx);
+  // // printf("TWAI Messages Receive Errors: %lu \n", status_info2.rx_error_counter);
+  // // printf("TWAI Messages Receive Missed: %lu \n", status_info2.rx_missed_count);
+  // // printf("TWAI Messages Bus errors: %lu \n", status_info2.bus_error_count);
+  // // printf("TWAI Messages ARB Lost: %lu \n", status_info2.arb_lost_count);
 
 
-  if (can_init_status == ESP_OK) {
-    printf("Driver installed\n");
-    this->can_init_status = twai_start_v2(twai_handler3);
+  // if (can_init_status == ESP_OK) {
+  //   printf("Driver installed\n");
+  //   this->can_init_status = twai_start_v2(twai_handler3);
 
-    if (this->can_init_status == ESP_OK) {
-      printf("Calling Setup\n");
-    }else{
-      printf("Failed to start twai 2 : %d \n", this->can_init_status);
-      return;
-    }
-  }else{
-    printf("Failed to install driver %d \n", can_init_status);
-    return;
-  }
+  //   if (this->can_init_status == ESP_OK) {
+  //     printf("Calling Setup\n");
+  //   }else{
+  //     printf("Failed to start twai 2 : %d \n", this->can_init_status);
+  //     return;
+  //   }
+  // }else{
+  //   printf("Failed to install driver %d \n", can_init_status);
+  //   return;
+  // }
 
     // Now set the constants for the Tx message.
     this->tx.extd = 0;
@@ -156,7 +156,6 @@ bool BaseCan::begin_tasks(){
     if (this->can_init_status != ESP_OK) {
         return false;
     }
-
 
     if (this->tx_task == nullptr) {
         ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "Starting CAN Tx task");
@@ -225,71 +224,18 @@ void BaseCan::rx_task_loop(){
 
     if (f_count == 0) {
       // printf("%d", f_count);
-      if( now % 2000 == 0){
-        // printf("\n");
-        // printf("TWAI Status: %d \n", can_status.state);
-        // printf("TWAI Messages to Receive: %lu \n", can_status.msgs_to_rx);
-        // printf("TWAI Messages to Send: %lu \n", can_status.msgs_to_tx);
-        // printf("TWAI Messages Receive Errors: %lu \n", can_status.rx_error_counter);
-        // printf("TWAI Messages Receive Missed: %lu \n", can_status.rx_missed_count);
-        // printf("TWAI Messages Bus errors: %lu \n", can_status.bus_error_count);
-        // printf("TWAI Messages ARB Lost: %lu \n", can_status.arb_lost_count);
-
-        // printf("TWAI statuss: %d \n", twai_get_status_info(&can_status));
-        // printf("TWAI rx error: %d \n", twai_receive(&message, pdMS_TO_TICKS(0)));
-        // printf("TWAI length Code : %d \n", message.data_length_code);
-        // printf("TWAI flags : %lu \n", message.flags);
-
-        // memset(&tx_can, 0x00, sizeof(twai_message_t));
-        // unsigned char tx_dataaa[8] = {0x1,0x2,0x3,0x4,0xf,0xa,0xc,0xd};
-
-        // for (int i=0; i < sizeof(tx_dataaa); i++) {
-        //   tx_can.data[i] = tx_dataaa[i];
-        // }
-
-        // tx_can.data_length_code = sizeof(tx_dataaa);
-        // tx_can.identifier = 0x07E8;
-        // tx_can.extd = 0;
-        // tx_can.rtr = 0;
-        // tx_can.ss = 1; // Always single shot
-        // tx_can.self = 0;
-        // tx_can.dlc_non_comp = 0;
-        // // to_bytes(tx_dataa, tx_can.data);
-
-        // // to_bytes(eng_rq1_tcm_tx.raw, tx_can.data);
-        // twai_transmit(&tx_can, 5);
-
-        // tx_can.identifier = 0xAAAA;
-        // tx_can.extd = 1;
-        // tx_can.data_length_code = 4;
-        // for (int i = 0; i < 4; i++) {
-        //     tx_can.data[i] = 0;
-        // }
-        
-        // esp_err_t can_tx_result = twai_transmit(&tx_can, pdMS_TO_TICKS(1000));
-        // printf("%d",can_tx_result);
-
-        // //Queue message for transmission
-        // if (can_tx_result == ESP_OK) {
-        //     printf("Message queued for transmission\n");
-        // } else {
-        //     printf("Failed to queue message for transmission\n");
-        // }
-
-      }
-
       vTaskDelay(4 / portTICK_PERIOD_MS);
     }else{
       for(uint8_t x = 0; x < f_count; x++) { // Read all frames
         if (twai_receive_v2(this->twai_handler[0], &rx, pdMS_TO_TICKS(0)) == ESP_OK && rx.data_length_code != 0 && rx.flags == 0) {
           if (this->diag_rx_id != 0 && rx.identifier == this->diag_rx_id) {
             // ISO-TP Diag endpoint
-            if (this->diag_rx_queue != nullptr && rx.data_length_code == 8) {
-                // Send the frame
-                if (xQueueSend(*this->diag_rx_queue, rx.data, 0) != pdTRUE) {
-                    ESP_LOG_LEVEL(ESP_LOG_ERROR, "EGS_BASIC_CAN","Discarded ISO-TP endpoint frame. Queue send failed");
-                }
-            }
+            // if (this->diag_rx_queue != nullptr && rx.data_length_code == 8) {
+            //     // Send the frame
+            //     if (xQueueSend(*this->diag_rx_queue, rx.data, 0) != pdTRUE) {
+            //         ESP_LOG_LEVEL(ESP_LOG_ERROR, "EGS_BASIC_CAN","Discarded ISO-TP endpoint frame. Queue send failed");
+            //     }
+            // }
           } else { // Normal message
             tmp = 0;
             for(i = 0; i < rx.data_length_code; i++) {

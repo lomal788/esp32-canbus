@@ -35,9 +35,11 @@ class BaseCan {
         // TaskHandle_t rx_task = nullptr;
         uint8_t tx_time_ms = 0;
 
-        gpio_num_t can_tx_pin[TWAI_BUS_SIZE] = {GPIO_NUM_5, GPIO_NUM_23};
-        gpio_num_t can_rx_pin[TWAI_BUS_SIZE] = {GPIO_NUM_4, GPIO_NUM_22};
-        
+        // gpio_num_t can_tx_pin[TWAI_BUS_SIZE] = {GPIO_NUM_5, GPIO_NUM_23};
+        // gpio_num_t can_rx_pin[TWAI_BUS_SIZE] = {GPIO_NUM_4, GPIO_NUM_22};
+        gpio_num_t can_tx_pin[TWAI_BUS_SIZE] = {GPIO_NUM_26, GPIO_NUM_23};
+        gpio_num_t can_rx_pin[TWAI_BUS_SIZE] = {GPIO_NUM_27, GPIO_NUM_22};
+
 
         uint16_t diag_tx_id = 0;
         uint16_t diag_rx_id = 0;
