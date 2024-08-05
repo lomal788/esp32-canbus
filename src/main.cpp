@@ -46,16 +46,20 @@ extern "C" void app_main(void) {
 
   // wifi_connection();
   // server_initiation();
-	spi_can_init();
 
   twai_can_hal = new Car("CAN_BASE", 20, 500000);
+  printf("HELLO2");
+	spi_can_init();
 
   if (!twai_can_hal->begin_tasks()) {
     printf("can task err");
-
   }
 
-  // init_twai();
+  init_sim();
+
+  // xTaskCreate(&rx_task, "uart_rx_task", 1024*2, NULL, 5, NULL);
+
+  // init_twai();0
 
   // xTaskCreate(&twai_rx_task, "can_rx_task", 8192, NULL, 5, NULL);
 
@@ -66,7 +70,6 @@ extern "C" void app_main(void) {
   // if (data_read > 0) {
   // }
 
-//   init_sim();
   // init_mqtt();
   // connect_mqtt_server();
   // subscribe_mqtt("test/1234");

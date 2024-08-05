@@ -1,7 +1,17 @@
 #include <esp_http_server.h>
+#include "car/twai_base.h"
 
 static esp_err_t get_handler(httpd_req_t *req) {
     char *response_message = "URI Response ...";
+
+    // sprintf(response_message,"%d \n",twai_can_hal->aabbcc);
+
+    // strcpy(response_message, twai_can_hal->aabbcc);
+
+    // strcpy(response_message, "URI Response ...1");
+    
+    // response_message += "URI Response ...";
+
     httpd_resp_send(req, response_message, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
 }

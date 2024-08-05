@@ -134,12 +134,13 @@ void Car::tx_frames(uint8_t bus) {
   }
 
   // Should be 20 Hz but I decided to send 17hz
-  if ( counter % 3 == 0) {
+  if ( counter % 3 == 0 && this->remote_start) {
     esp_err_t can_tx_result = twai_transmit(&tx, 5);
-    // printf("%d \n",can_tx_result);
-    if(can_tx_result != 0){
-      printf("Fail to Send Can msg %d \n",can_tx_result);
-    }
+    this->remote_start = false;
+    // // printf("%d \n",can_tx_result);
+    // if(can_tx_result != 0){
+    //   printf("Fail to Send Can msg %d \n",can_tx_result);
+    // }
   }
   
   counter++;
@@ -150,6 +151,14 @@ void Car::on_rx_done(uint64_t now_ts) {
     //     (static_cast<ShifterTrrs*>(shifter))->update_shifter_position(now_ts);
     // }
 }
+
+// void make_car_ign(){
+//   this->remote_expire_time = esp_timer_get_time() + (1000000 * 60 * 15 ); // 15Min Default
+// }
+
+// void add_car_ign(uint64_t ts){
+//   this->remote_expire_time += (1000000 * ts )
+// }
 
 /*
 0x010 DoorId
@@ -174,60 +183,50 @@ static void test(void *arg){
   // digitalWrite(switchPin1, HIGH); // 배터리 전원끊음
 }
 
-// Relay Control
-static void relay_control_task(void *arg){
-  gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT);
-  int level = 0;
-
-  while(1){
-    if(level == 1){
-      printf("relay on\n");
-      gpio_set_level(GPIO_NUM_16, 0);
-    }else{
-      printf("relay off\n");
-      gpio_set_level(GPIO_NUM_16, 1);
-    }
-    level = !level;
-
-    vTaskDelay(1500 / portTICK_PERIOD_MS);
-  }
-}
-
-static void v12Relay_task(void *arg){
-
-  int level = 0;
+// 1 ACC 2 ACC ON, 3 ACC AND START, 4 ALL OFF
+void Car::relay_handle(int relayType){
+  // ACC
+  // GPIO_MODE_OUTPUT
+  gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT_OD);
+  // ON
   gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT_OD);
 
-  while(1){
-    
-    if(level == 1){
-      printf("Relay on\n");
-      gpio_set_level(GPIO_NUM_18, 0);
-    }else{
-      printf("Relay off\n");
-      gpio_set_level(GPIO_NUM_18, 1);
-    }
+  if(this->keyfob == false || this->remote_start == false){
+    return;
+  }
 
-    level = !level;
-    vTaskDelay(1500 / portTICK_PERIOD_MS);
+  if(relayType == 1){
+    printf("ACC on\n");
+    gpio_set_level(GPIO_NUM_16, 0);
+  }else if(relayType == 2){
+    printf("ACC ON\n");
+    gpio_set_level(GPIO_NUM_16, 0);
+    printf("ON ON\n");
+    gpio_set_level(GPIO_NUM_18, 0);
+  }else if(relayType == 3){
+    printf("ACC ON\n");
+    gpio_set_level(GPIO_NUM_16, 0);
+    printf("ACC ON\n");
+    gpio_set_level(GPIO_NUM_18, 0);
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_NUM_18, 1);
+  }else if(relayType == 4){
+    printf("Relay off\n");
+    gpio_set_level(GPIO_NUM_18, 1);
   }
 }
 
-static void key_fob_task(void *arg){
+void Car::setKeyFobStatus(int status){
   gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
-  int level = 0;
-
-  while(1){
-    if(level == 1){
-      printf("Smart Key on\n");
-      gpio_set_level(GPIO_NUM_21, 0);
-    }else{
-      printf("Smart Key off\n");
-      gpio_set_level(GPIO_NUM_21, 1);
-    }
-    level = !level;
-
-    vTaskDelay(1500 / portTICK_PERIOD_MS);
+  
+  if(status == 1){
+    printf("Smart Key on\n");
+    gpio_set_level(GPIO_NUM_21, 1);
+    this->keyfob = true;
+  }else{
+    printf("Smart Key off\n");
+    gpio_set_level(GPIO_NUM_21, 0);
+    this->keyfob = false;
   }
 }
 
