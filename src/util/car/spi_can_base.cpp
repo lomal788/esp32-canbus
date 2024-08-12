@@ -150,14 +150,14 @@ void spi_rx_task_loop(void *arg) {
 
 	if (irq & CANINTF_RX0IF) {
 		if (MCP2515_readMessage(RXBn_t::RXB0, &frame) == ERROR_OK) {
-			// printf("get data %lu - %d \n" , frame.can_id,(unsigned char) frame.can_dlc);
+			printf("get data %lu - %d \n" , frame.can_id,(unsigned char) frame.can_dlc);
 			// frame contains received message
 		}
 	}
 
 	if (irq & CANINTF_RX1IF) {
 		if (MCP2515_readMessage(RXBn_t::RXB1, &frame) == ERROR_OK) {
-			// printf("get data2 %lu - %d \n" , frame.can_id,(unsigned char) frame.can_dlc);
+			printf("get data2 %lu - %d \n" , frame.can_id,(unsigned char) frame.can_dlc);
 			// frame contains received message	
 		}
 	}
