@@ -14,33 +14,9 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include <stdint.h>
+#include "esp_timer.h"
 
 #define TAG "main"
-
-uint64_t FRAME_DATA[8];
-typedef union {
-	uint64_t raw;
-	uint8_t bytes[8];
-	struct {
-		/** CRC Checksum Byte 1 to 7 Accordinging to SAE J1850 / CRC Checksum Byte 1 - 7 to SAE J1850 **/
-		uint8_t CRC_ENG_RQ2_TCM: 8;
-		 /** BITFIELD PADDING. DO NOT CHANGE **/
-		uint8_t __PADDING1__: 4;
-		/** Message Counter / Message Counter **/
-		uint8_t MC_ENG_RQ2_TCM: 4;
-		/** Transmission Crankly Torque Loss / Loss Torque **/
-		uint8_t TxTrqLoss: 8;
-		/** Crackish Torque to Wheel Torque ratio / factor crankshaft torque to wheel torque **/
-		uint16_t EngWhlTrqRatio_TCM: 14;
-		 /** BITFIELD PADDING. DO NOT CHANGE **/
-		uint8_t __PADDING2__: 2;
-		/** Actual Transmission Ratio (CVT) / Translation Translation (CVT) **/
-		uint8_t TxRatio: 8;
-	} __attribute__((packed));
-	/** Gets CAN ID of ENG_RQ2_TCM_EGS53 **/
-	uint32_t get_canid(){ return 0x0015; }
-} ENG_RQ2_TCM_EGS53;
-
 
 Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx_time_ms, baud) {
 
@@ -52,24 +28,32 @@ Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx
 }
 
 void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) {
+  uint64_t now = esp_timer_get_time() / 1000;
 
   // printf(id+" "+data+" "+ timestamp +"\n");
   // ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "CAN Rx : "+id + " " + timestamp);
 
-  FRAME_DATA[0] = data;
-  ENG_RQ2_TCM_EGS53 dest;
-  dest.raw = FRAME_DATA[0];
-
-  printf("%d ", dest.CRC_ENG_RQ2_TCM);
-  this->aabbcc = dest.CRC_ENG_RQ2_TCM;
-
   printf("%lx", id);
-  printf(" val = 0x%" PRIx64, data);
+  printf(" val = %" PRIx64, data);
   printf(" time Stamp = 0x%" PRIx64 "\n", timestamp);
 
-    // if (this->ms51.import_frames(data, id, timestamp)) {
-    // } else if (this->esp51.import_frames(data, id, timestamp)) {
-    // }
+  if (this->ecu_jerry.import_frames(data, id, timestamp)) {
+    SAS11_CAN sasData;
+    EMS14_CAN ems14Data;
+    CLU2_CAN clu2Data;
+    EMS11_CAN ems11Data;
+
+    this->ecu_jerry.GET_SAS11_DATA(now, 9999999 ,&sasData);
+    this->ecu_jerry.GET_EMS14_DATA(now, 9999999 ,&ems14Data);
+    this->ecu_jerry.GET_CLU2_DATA(now, 9999999 ,&clu2Data);
+    this->ecu_jerry.GET_EMS11_DATA(now, 9999999 ,&ems11Data);
+
+    printf("STEER ANGLE : %f \n", (int16_t) reverse_bytes(sasData.SAS_ANGLE) * 0.1);
+    printf("VB : %f \n", ems14Data.VB * 0.1015625);
+    printf("CF_Clu_IGNSw : %d \n", clu2Data.CF_Clu_IGNSw);
+    printf("SWI_IGK : %d , F_N_ENG : %d , RPM : %f  \n", ems11Data.SWI_IGK, ems11Data.F_N_ENG, reverse_bytes(ems11Data.RPM) * 0.25);
+    // "%" PRIu32 
+  }
 
   // EMS11
   // if(id == 0x316){
@@ -95,25 +79,27 @@ void Car::tx_frames(uint8_t bus) {
   //     tx.data[i] = 0;
   // }
   char tx_dataaa[8] = {0x1,0x2,0x3,0x4,0xf,0xa,0xc,0x1d};
+  CLU2_CAN clu2Data;
+  this->ecu_jerry.GET_CLU2_DATA(esp_timer_get_time() / 1000, 9999999 ,&clu2Data);
 
-  ENG_RQ2_TCM_EGS53 dest;
-  dest.raw = FRAME_DATA[0];
+  // tx.data = clu2Data.bytes;
+  to_bytes(clu2Data.raw, tx.data);
 
-  for (int i=0; i < 4; i++) {
-    // if(i == 1){
-    //   // uint8_t srccc = dest.CRC_ENG_RQ2_TCM & 0xFF;
-    //   // srccc >>= 8;
-    //   // uint32_t val = (dest.CRC_ENG_RQ2_TCM[0] << 16) + (dest.CRC_ENG_RQ2_TCM[1] << 8) + dest.CRC_ENG_RQ2_TCM[2];
-    //   // print()
-    //   tx.data[i] = 0x00;
-    // }else {
-    // printf("%d", i);
-    if(i == 3){
-      tx.data[i] = this->alive_cnt;
-    }else{
-      tx.data[i] = 0x00;
-    }
-  }
+  // for (int i=0; i < 8; i++) {
+  //   // if(i == 1){
+  //   //   // uint8_t srccc = dest.CRC_ENG_RQ2_TCM & 0xFF;
+  //   //   // srccc >>= 8;
+  //   //   // uint32_t val = (dest.CRC_ENG_RQ2_TCM[0] << 16) + (dest.CRC_ENG_RQ2_TCM[1] << 8) + dest.CRC_ENG_RQ2_TCM[2];
+  //   //   // print()
+  //   //   tx.data[i] = 0x00;
+  //   // }else {
+  //   // printf("%d", i);
+  //   if(i == 3){
+  //     tx.data[i] = this->alive_cnt;
+  //   }else{
+  //     tx.data[i] = 0x01;
+  //   }
+  // }
 
   //  tx.data[2] = 0x11;
   // printf("%d", sizeof(tx_dataaa));
@@ -134,10 +120,11 @@ void Car::tx_frames(uint8_t bus) {
   }
 
   // Should be 20 Hz but I decided to send 17hz
-  if ( counter % 3 == 0 && this->remote_start) {
+  if ( counter % 3 == 0) {
+  // if ( counter % 3 == 0 && this->remote_start) {
     esp_err_t can_tx_result = twai_transmit(&tx, 5);
     this->remote_start = false;
-    // // printf("%d \n",can_tx_result);
+    // printf("%d \n",can_tx_result);
     // if(can_tx_result != 0){
     //   printf("Fail to Send Can msg %d \n",can_tx_result);
     // }
@@ -229,6 +216,21 @@ void Car::setKeyFobStatus(int status){
     this->keyfob = false;
   }
 }
+
+// adc_batt = adc_channel_t::ADC_CHANNEL_8
+// adc_channel_t adc_batt;
+
+// esp_err_t Sensors::read_vbatt(uint16_t *dest){
+//     int v = 0;
+//     int read = 0;
+//     esp_err_t res = adc_oneshot_read(adc2_handle, pcb_gpio_matrix->sensor_data.adc_batt, &read);
+//     res = adc_cali_raw_to_voltage(adc2_cal, read, &v);
+//     if (res == ESP_OK) {
+//         // Vin = Vout(R1+R2)/R2
+//         *dest = v * 5.54; // 5.54 = (100+22)/22
+//     }
+//     return res;
+// }
 
 // CH 0 GPIO 36
 // + 100k ohm to 36 pin
