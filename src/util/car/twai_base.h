@@ -79,7 +79,11 @@ class BaseCan {
                 dst[7-i] = src & 0xFF;
                 src >>= 8;
             }
-        }
+        };
+
+        inline uint16_t reverse_bytes(uint16_t value) {
+            return ((value & 0xFF) << 8) | ((value >> 8) & 0xFF);
+        };
 };
 
 extern BaseCan* twai_can_hal;
