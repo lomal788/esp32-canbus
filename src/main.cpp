@@ -47,7 +47,7 @@ extern "C" void app_main(void) {
   // wifi_connection();
   // server_initiation();
 
-  twai_can_hal = new Car("CAN_BASE", 20, 500000);
+  twai_can_hal = new Car("CAR", 20, 500000);
   printf("HELLO2");
 	spi_can_init();
 
