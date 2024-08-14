@@ -25,6 +25,7 @@ Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx
   tx.ss = 0; // Always single shot
   tx.self = 0;
   tx.dlc_non_comp = 0;
+
 }
 
 void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) {
@@ -68,6 +69,85 @@ void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timesta
   // }
 
 
+}
+
+void Car::on_begin_task_done() {
+    // if(ShifterStyle::TRRS == VEHICLE_CONFIG.shifter_style) {
+    //     (static_cast<ShifterTrrs*>(shifter))->update_shifter_position(now_ts);
+    // }
+    if (this->car_task == nullptr) {
+        ESP_LOG_LEVEL(ESP_LOG_INFO, this->name, "Starting Car task");
+        // xTaskCreatePinnedToCore(twai_receive_task, "TWAI_rx", 4096, NULL, RX_TASK_PRIO, NULL, tskNO_AFFINITY);
+        if (xTaskCreate(this->start_car_task_loop, "CAR_TASK_LOOP", 8192, this, 6, &this->car_task) != pdPASS) {
+            ESP_LOG_LEVEL(ESP_LOG_ERROR, this->name, "Car task creation failed!");
+        }
+    }
+}
+
+[[noreturn]]
+void Car::car_task_loop() {
+  uint64_t now = esp_timer_get_time() / 1000;
+
+  while(1){
+    now = esp_timer_get_time() / 1000;
+    if(this->car_status == CAR_SATUS_ENUM::IDLE){
+      // printf("CAR IS IN IDLE ");
+
+      // Car State Topic
+    }else if(this->car_status == CAR_SATUS_ENUM::R_START_BEGIN){
+      // Data Recieved Car Start Process Begin
+      this->setKeyFobStatus(true);
+      this->keyfob = true;
+      this->remote_start = true;
+      // ACC ON
+      this->relay_handle(1);
+      // TRYING TO START CAR
+      this->relay_handle(3);
+      this->car_status = CAR_SATUS_ENUM::R_STARTING;
+    }else if(this->car_status == CAR_SATUS_ENUM::R_STARTING){
+      this->ecu_jerry.GET_EMS11_DATA(now, 100, &this->ems11Data);
+
+      if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300){
+        this->remote_expire_time = now + 1000 * 60 * 15 ;
+        this->car_status = CAR_SATUS_ENUM::R_STARTED;
+      }
+    }else if(this->car_status == CAR_SATUS_ENUM::R_STARTED){
+      if(now > now + this->remote_expire_time ){
+        // engine stop Status Start
+        this->setKeyFobStatus(false);
+        this->relay_handle(1);
+        this->car_status = CAR_SATUS_ENUM::R_STOPING;
+      }
+
+      // Car State Topic
+    }else if(this->car_status == CAR_SATUS_ENUM::R_STOPING){
+      this->ecu_jerry.GET_CLU2_DATA(now, 500, &this->clu2Data);
+      if(this->clu2Data.CF_Clu_IGNSw == 0){
+        if(this->keyfob){
+          this->setKeyFobStatus(false);
+        }
+        this->car_status = CAR_SATUS_ENUM::R_STOPED;
+      } else {
+        this->ecu_jerry.GET_EMS11_DATA(now, 500, &this->ems11Data);
+        if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300){
+          this->setKeyFobStatus(false);
+          this->relay_handle(1);
+        } else if(this->clu2Data.CF_Clu_IGNSw == 2){
+          this->setKeyFobStatus(false);
+          this->relay_handle(1);
+        }
+      }
+    }else if(this->car_status == CAR_SATUS_ENUM::R_STOPED){
+      this->remote_expire_time = 0;
+      this->car_status = CAR_SATUS_ENUM::IDLE;
+      // Car Stop Data Send
+
+    }else if(this->car_status == CAR_SATUS_ENUM::M5){
+
+    }
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
 }
 
 void Car::tx_frames(uint8_t bus) {
@@ -193,7 +273,7 @@ void Car::relay_handle(int relayType){
   }else if(relayType == 3){
     printf("ACC ON\n");
     gpio_set_level(GPIO_NUM_16, 0);
-    printf("ACC ON\n");
+    printf("TRYING TO START CAR\n");
     gpio_set_level(GPIO_NUM_18, 0);
     vTaskDelay(10000 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_NUM_18, 1);
@@ -203,10 +283,10 @@ void Car::relay_handle(int relayType){
   }
 }
 
-void Car::setKeyFobStatus(int status){
+void Car::setKeyFobStatus(bool status){
   gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
   
-  if(status == 1){
+  if(status){
     printf("Smart Key on\n");
     gpio_set_level(GPIO_NUM_21, 1);
     this->keyfob = true;
