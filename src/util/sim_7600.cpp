@@ -22,7 +22,7 @@
 
 #define TAG "main"
 
-static const int RX_BUF_SIZE = 1024;
+static const int RX_BUF_SIZE = 1024 * 2;
 #define MAX_STR_LEN 4000
 
 #define TXD_PIN (GPIO_NUM_14)
@@ -372,8 +372,8 @@ void begin_tasks22(){
   printf("START SIM INIT \n");
   // mainState = MODE_START;
   
-  xTaskCreate(&rx_task, "uart_rx_task", 1024*2, NULL, 5, NULL);
-  xTaskCreate(&status_task, "uart_status_task", 1024*2, NULL, 5, NULL);
+  xTaskCreate(&rx_task, "uart_rx_task", 1024*4, NULL, 5, NULL);
+  xTaskCreate(&status_task, "uart_status_task", 1024*4, NULL, 5, NULL);
   // vTaskDelay(100 / portTICK_PERIOD_MS);
 
   // sendSimATCmd("AT+CGNSSMODE=15,1");
