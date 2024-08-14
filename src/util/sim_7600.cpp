@@ -30,7 +30,6 @@ static const int RX_BUF_SIZE = 1024;
 
 // #define UART UART_NUM_2
 
-
 char* rtrim(char* s) {
   char t[MAX_STR_LEN];
   char *end;
@@ -431,7 +430,7 @@ void init_mqtt(){
   vTaskDelay(100 / portTICK_PERIOD_MS);
   sendSimATCmd("AT+CMQTTSTART");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CMQTTACCQ=0,\"SIM7600_client\"");
+  sendSimATCmd("AT+CMQTTACCQ=0,\"espmqtt\"");
   vTaskDelay(100 / portTICK_PERIOD_MS);
   
 }
@@ -620,7 +619,7 @@ void modem_reset(){
 }
 
 void status_task(void *arg){
-  uint64_t startMillis = esp_timer_get_time();
+  uint64_t startMillis = esp_timer_get_time() / 1000;
   mainState = MODE_RECONNECT_INIT;
 
   while(1){
@@ -632,7 +631,7 @@ void status_task(void *arg){
 
     switch (mainState) {
       case MODE_START:
-        if((esp_timer_get_time() - startMillis) / 1000 > 60 * 1000){
+        if((esp_timer_get_time() / 1000 - startMillis) > 60 * 1000){
           mainState = MODE_RECONNECT_INIT;
         }
 
@@ -644,9 +643,9 @@ void status_task(void *arg){
       case MODE_CONNECTING:
         break;
       case MODE_CONNECTED:
-          if((esp_timer_get_time() - startMillis) / 1000 > 60 * 1000){
+          if((esp_timer_get_time() / 1000 - startMillis) > 60 * 1000){
             sendSimATCmd("AT+CMQTTCONNECT?");
-            startMillis = esp_timer_get_time();
+            startMillis = esp_timer_get_time() / 1000;
           }
 
         break;
@@ -671,14 +670,13 @@ void status_task(void *arg){
       case MODE_RECONNECT_INIT:
         printf("RESET DEVICE\n");
         modem_reset();
-        startMillis = esp_timer_get_time();
+        startMillis = esp_timer_get_time() / 1000;
         mainState = MODE_START;
         break;
       default:
         break;
-
     }
-
+    vTaskDelay(100 / portTICK_PERIOD_MS);
   }
 }
 
@@ -719,23 +717,11 @@ void rx_task(void *arg){
         }else if(rxBytes < 9){
           sendSimATCmd("AT");
         }
-      }
-
-      // AT+CRESET OK change to MODE START
-
-      // // String aa = "aa";
-      if(strstr((const char*) rx_buffer, "+CME ERROR: SIM busy")) {
+      }else if(strstr((const char*) rx_buffer, "+CME ERROR: SIM busy")) {
+        // AT+CRESET OK change to MODE START
         // sendSimATCmd("AT");
         mainState = MODE_RECONNECT_INIT;
-      }
-
-      // if ( (strncmp((const char*) (rx_buffer+rxBytes-9), "AT", 2)) == 0 && strncmp((const char*) (rx_buffer+rxBytes-4), "OK", 2) == 0 ) {
-      //   printf("AT OKAY!!");
-      //   // commandid_reply = REPLY_OK;
-      //   // Usart1SendData_DMA("at\r\n", strlen("at\r\n"));
-      // }
-
-      if(strstr((const char*) rx_buffer, "RDY")){
+      }else if(strstr((const char*) rx_buffer, "RDY")){
         mainState = MODE_INIT;
       }else if(strstr((const char*) rx_buffer, "+CPSI: NO SERVICE")) {
         // +CPSI: NO SERVICE,Online
@@ -744,9 +730,7 @@ void rx_task(void *arg){
         sendSimATCmd("AT+CGPS=0");
         // sendSimATCmd("AT");
         // mainState = MODE_RECONNECT_INIT;
-      }
-
-      if(strstr((const char*) rx_buffer, "PB DONE") ||
+      }else if(strstr((const char*) rx_buffer, "PB DONE") ||
       strstr((const char*) rx_buffer, "+CPSI: LTE,Online") ||
       (
         strstr((const char*) rx_buffer, "+COPS: 0") &&
@@ -759,60 +743,27 @@ void rx_task(void *arg){
           vTaskDelay(100 / portTICK_PERIOD_MS);
           sendSimATCmd("AT+CGACT=1,1");
           vTaskDelay(100 / portTICK_PERIOD_MS);
-      }
-
-      if(strstr((const char*) rx_buffer, "AT+CGACT=1,1")){
-        // vTaskDelay(5000 / portTICK_PERIOD_MS);
-        //   sendSimATCmd("AT+CFUN=1");
-        //   vTaskDelay(100 / portTICK_PERIOD_MS);
-        //   sendSimATCmd("AT+CGACT=1,1");
-        //   vTaskDelay(100 / portTICK_PERIOD_MS);
+      }else if(strstr((const char*) rx_buffer, "AT+CGACT=1,1")){
         init_mqtt();
         mainState = MODE_CONNECTING;
-        // connect_mqtt_server();
-      }
-
-      if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23") ||
+      }else if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23") ||
       strstr((const char*) rx_buffer, "+CMQTTSTART: 0")
       ){
-        // vTaskDelay(5000 / portTICK_PERIOD_MS);
-        //   sendSimATCmd("AT+CFUN=1");
-        //   vTaskDelay(100 / portTICK_PERIOD_MS);
-        //   sendSimATCmd("AT+CGACT=1,1");
-        //   vTaskDelay(100 / portTICK_PERIOD_MS);
-        // init_mqtt();
         connect_mqtt_server();
-      }
-
-      if(strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,0") ||
+      }else if(strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,0") ||
       strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,")
       ){
-        // vTaskDelay(5000 / portTICK_PERIOD_MS);
-        //   sendSimATCmd("AT+CFUN=1");
-        //   vTaskDelay(100 / portTICK_PERIOD_MS);
-        //   sendSimATCmd("AT+CGACT=1,1");
-        //   vTaskDelay(100 / portTICK_PERIOD_MS);
-        // init_mqtt();
-        // connect_mqtt_server();
         subscribe_mqtt("test/1234");
-        // send_topic_mqtt("test/1234", (const char*) "aasd");
         mainState = MODE_CONNECTED;
-      }
-
-      if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
+      }else if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
         connect_mqtt_server();
         mainState = MODE_CONNECTING;
-      }
-
-      if(strstr((const char*) rx_buffer, "+CGPSINFO: 0")){
-        
+      }else if(strstr((const char*) rx_buffer, "+CGPSINFO: 0")){
         sendSimATCmd("AT+CGPS=1,1");
         vTaskDelay(50 / portTICK_PERIOD_MS);
         sendSimATCmd("AT+CGPS?");
         vTaskDelay(50 / portTICK_PERIOD_MS);
-      }
-
-      if(strstr((const char*) rx_buffer, "+CIPEVENT: NETWORK CLOSED") ||
+      }else if(strstr((const char*) rx_buffer, "+CIPEVENT: NETWORK CLOSED") ||
         // strstr((const char*) rx_buffer, "+CIPEVENT: NETWORK CLOSED UNEXPECTEDLY") ||
         (
         strstr((const char*) rx_buffer, "+CMQTTCONNECT") &&
@@ -820,40 +771,23 @@ void rx_task(void *arg){
         )
        ){
         mainState = MODE_RECONNECT_INIT;
-        // init_mqtt();
-        // connect_mqtt_server();
-      }
-      // else if(strstr((const char*) rx_buffer, "AT+CIPMODE=0")){
-      //   init_mqtt();
-      //   connect_mqtt_server();
-      // }
-
+      }else if(strstr((const char*) rx_buffer, "+CMQTTRXPAYLOAD: 0") && strstr((const char*) rx_buffer, "+CMQTTRXEND: 0")){
       // TOPIC Receive
-      if(strstr((const char*) rx_buffer, "+CMQTTRXPAYLOAD: 0") && strstr((const char*) rx_buffer, "+CMQTTRXEND: 0")){
+
         char* pch = NULL;
 
         pch = strtok((char *)rx_buffer, "\r");
-        // printf("%s\n", pch);
         pch = strtok(NULL, "\r");
-        // printf("%s\n", pch);
         pch = strtok(NULL, "\r");
         char* topicNm = replaceAll(pch, "\r", "");
         topicNm = trim(topicNm);
-        // printf("%s\n", pch);
         pch = strtok(NULL, "\r");
-        // printf("%s\n", pch);
         pch = strtok(NULL, "\r");
         char* payLoad = replaceAll(pch, "\r", "");
         payLoad = rtrim(ltrim(payLoad));
 
         rx_mqtt_msg((const char*) topicNm, (const char*) payLoad);
       }
-
-      // if (strstr((const char*)rx_buffer, "OK")) {
-      // }else if (strstr((const char*)rx_buffer, "ERROR")) {
-      // }
-
-      // ESP_LOG_BUFFER_HEXDUMP(RX_TASK_TAG, rx_buffer, rxBytes, ESP_LOG_INFO);
     }
     // vTaskDelay(10 / portTICK_PERIOD_MS);
   }
