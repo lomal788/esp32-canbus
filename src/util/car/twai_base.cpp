@@ -178,7 +178,7 @@ bool BaseCan::begin_tasks(){
         }
     }
 
-
+    this->on_begin_task_done();
     return true; // Ready!
 }
 
