@@ -15,6 +15,7 @@
 #include "esp_log.h"
 #include <stdint.h>
 #include "esp_timer.h"
+#include "../sim_7600.h"
 
 #define TAG "main"
 
@@ -26,6 +27,14 @@ Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx
   tx.self = 0;
   tx.dlc_non_comp = 0;
 
+  // Set KeyFob
+  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
+
+  // ACC
+  // GPIO_MODE_OUTPUT
+  gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT_OD);
+  // ON
+  gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT_OD);
 }
 
 void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) {
@@ -82,6 +91,8 @@ void Car::on_begin_task_done() {
             ESP_LOG_LEVEL(ESP_LOG_ERROR, this->name, "Car task creation failed!");
         }
     }
+
+    LTE = new LTE_MODEM();
 }
 
 [[noreturn]]
@@ -92,6 +103,9 @@ void Car::car_task_loop() {
     now = esp_timer_get_time() / 1000;
     if(this->car_status == CAR_SATUS_ENUM::IDLE){
       // printf("CAR IS IN IDLE ");
+      // this->LTE->mainState = MainState_t::MODE_START;
+
+      // LTE->uodate_task_status(MainState_t::TEST);
 
       // Car State Topic
     }else if(this->car_status == CAR_SATUS_ENUM::R_START_BEGIN){
@@ -108,6 +122,7 @@ void Car::car_task_loop() {
       this->ecu_jerry.GET_EMS11_DATA(now, 100, &this->ems11Data);
 
       if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300){
+        // Default 15 Mins Car
         this->remote_expire_time = now + 1000 * 60 * 15 ;
         this->car_status = CAR_SATUS_ENUM::R_STARTED;
       }
@@ -252,11 +267,6 @@ static void test(void *arg){
 
 // 1 ACC 2 ACC ON, 3 ACC AND START, 4 ALL OFF
 void Car::relay_handle(int relayType){
-  // ACC
-  // GPIO_MODE_OUTPUT
-  gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT_OD);
-  // ON
-  gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT_OD);
 
   if(this->keyfob == false || this->remote_start == false){
     return;
@@ -284,7 +294,6 @@ void Car::relay_handle(int relayType){
 }
 
 void Car::setKeyFobStatus(bool status){
-  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
   
   if(status){
     printf("Smart Key on\n");
