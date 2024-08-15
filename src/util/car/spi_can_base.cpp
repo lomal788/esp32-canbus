@@ -9,7 +9,6 @@
 #include "esp_err.h"
 #include "esp_log.h"
 
-
 #define PIN_NUM_MISO 19
 #define PIN_NUM_MOSI 23
 #define PIN_NUM_CLK  18
