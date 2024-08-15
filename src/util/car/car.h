@@ -4,21 +4,22 @@
 #include <nvs_flash.h>
 #include <nvs.h>
 #include "twai_base.h"
+#include "../sim_7600.h"
 #include "../../ecu/src/ECU_CAR.h"
 
-        enum class CAR_SATUS_ENUM : uint16_t {
-            IDLE = 0,
-            R_START_BEGIN = 1,
-            R_STARTING = 2,
-            R_STARTED = 3,
-            R_STOPING = 4,
-            R_STOPED = 5,
-            M5 = 6,
-            M6 = 7,
-            M7 = 8,
-            M8 = 9,
-            M9 = 10,
-        };
+enum class CAR_SATUS_ENUM : uint16_t {
+    IDLE = 0,
+    R_START_BEGIN = 1,
+    R_STARTING = 2,
+    R_STARTED = 3,
+    R_STOPING = 4,
+    R_STOPED = 5,
+    M5 = 6,
+    M6 = 7,
+    M7 = 8,
+    M8 = 9,
+    M9 = 10,
+};
 
 class Car: public BaseCan{
     public:
@@ -39,7 +40,7 @@ class Car: public BaseCan{
         }
 
     private:
-
+        LTE_MODEM* LTE;
         ECU_JERRY ecu_jerry = ECU_JERRY();
         TaskHandle_t car_task = nullptr;
         CAR_SATUS_ENUM car_status = CAR_SATUS_ENUM::IDLE; // 0 off, 1 acc , 2 on
