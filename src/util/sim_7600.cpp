@@ -154,8 +154,12 @@ char *replaceAll(char *s, const char *olds, const char *news) {
   return result;
 }
 
+LTE_MODEM::LTE_MODEM() {
 
-void init_sim(){
+  this->init_sim();
+}
+
+void LTE_MODEM::init_sim(){
   // const uart_port_t uart_num = UART_NUM_2;
   const uart_config_t uart_config = {
       .baud_rate = 115200,
@@ -322,35 +326,35 @@ void init_sim(){
   // }
 
 
-  // sendSimATCmd("AT+CPIN?");
+  // this->sendSimATCmd("AT+CPIN?");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+COPS?");
+  // this->sendSimATCmd("AT+COPS?");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CPSI?");
+  // this->sendSimATCmd("AT+CPSI?");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CGPS=0");
+  // this->sendSimATCmd("AT+CGPS=0");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // // sendSimATCmd("AT+CGNSSMODE=15,1");
+  // // this->sendSimATCmd("AT+CGNSSMODE=15,1");
   // // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // // sendSimATCmd("AT+CGPSNMEA=200191");
+  // // this->sendSimATCmd("AT+CGPSNMEA=200191");
   // // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // // sendSimATCmd("AT+CGPSNMEARATE=1");
+  // // this->sendSimATCmd("AT+CGPSNMEARATE=1");
   // // vTaskDelay(100 / portTICK_PERIOD_MS);
   
-  // sendSimATCmd("AT+CVAUXV=3050");
+  // this->sendSimATCmd("AT+CVAUXV=3050");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CVAUXS=1");
+  // this->sendSimATCmd("AT+CVAUXS=1");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CVAUXS=0");
+  // this->sendSimATCmd("AT+CVAUXS=0");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CGPS=1,1");
+  // this->sendSimATCmd("AT+CGPS=1,1");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // // sendSimATCmd("AT+CGPSINFOCFG=1,31");
+  // // this->sendSimATCmd("AT+CGPSINFOCFG=1,31");
   // // vTaskDelay(100 / portTICK_PERIOD_MS);
 
-  // sendSimATCmd("AT+CGPS=?");
+  // this->sendSimATCmd("AT+CGPS=?");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CGPSINFO");
+  // this->sendSimATCmd("AT+CGPSINFO");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
   
   
@@ -365,72 +369,72 @@ void init_sim(){
   // uart_intr_config(UART, &uart_intr);
   // uart_enable_rx_intr(UART);
   
-  begin_tasks22();
+  this->begin_tasks();
 }
 
-void begin_tasks22(){
+void LTE_MODEM::begin_tasks(){
   printf("START SIM INIT \n");
-  // mainState = MODE_START;
+  // this->mainState = MODE_START;
   
-  xTaskCreate(&rx_task, "uart_rx_task", 1024*4, NULL, 5, NULL);
-  xTaskCreate(&status_task, "uart_status_task", 1024*4, NULL, 5, NULL);
+  xTaskCreate(&this->start_rx_task, "uart_rx_task", 1024*4, this, 5, &this->lte_rx_task);
+  xTaskCreate(&this->start_status_task, "uart_status_task", 1024*4, this, 5, &this->lte_status_task);
   // vTaskDelay(100 / portTICK_PERIOD_MS);
 
-  // sendSimATCmd("AT+CGNSSMODE=15,1");
+  // this->sendSimATCmd("AT+CGNSSMODE=15,1");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CGPSNMEA=200191");
+  // this->sendSimATCmd("AT+CGPSNMEA=200191");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CGPSNMEARATE=1");
+  // this->sendSimATCmd("AT+CGPSNMEARATE=1");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
   
-  // sendSimATCmd("AT+CVAUXV=3050");
+  // this->sendSimATCmd("AT+CVAUXV=3050");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CVAUXS=1");
+  // this->sendSimATCmd("AT+CVAUXS=1");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CVAUXS=0");
+  // this->sendSimATCmd("AT+CVAUXS=0");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CGPS=1,1");
+  // this->sendSimATCmd("AT+CGPS=1,1");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
 }
 
-void http_req(){
-  sendSimATCmd("AT+HTTPINIT");
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+HTTPPARA=\"URL\", \"https://webhook.site/7f2c7a86-54ed-43c6-8ac3-eec8dad29d76\"");
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+HTTPACTION=0");
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+HTTPREAD?");
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+HTTPREAD=0,140");
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+HTTPTERM");
-  vTaskDelay(100 / portTICK_PERIOD_MS);
-}
+// void http_req(){
+//   this->sendSimATCmd("AT+HTTPINIT");
+//   vTaskDelay(100 / portTICK_PERIOD_MS);
+//   this->sendSimATCmd("AT+HTTPPARA=\"URL\", \"https://webhook.site/7f2c7a86-54ed-43c6-8ac3-eec8dad29d76\"");
+//   vTaskDelay(100 / portTICK_PERIOD_MS);
+//   this->sendSimATCmd("AT+HTTPACTION=0");
+//   vTaskDelay(100 / portTICK_PERIOD_MS);
+//   this->sendSimATCmd("AT+HTTPREAD?");
+//   vTaskDelay(100 / portTICK_PERIOD_MS);
+//   this->sendSimATCmd("AT+HTTPREAD=0,140");
+//   vTaskDelay(100 / portTICK_PERIOD_MS);
+//   this->sendSimATCmd("AT+HTTPTERM");
+//   vTaskDelay(100 / portTICK_PERIOD_MS);
+// }
 // AT+CPIN?
 
-void init_mqtt(){
+void LTE_MODEM::init_mqtt(){
   
-  // sendSimATCmd("AT+CPSI?");
-  sendSimATCmd("AT+CGREG?");
-  sendSimATCmd("ATE0");
+  // this->sendSimATCmd("AT+CPSI?");
+  this->sendSimATCmd("AT+CGREG?");
+  this->sendSimATCmd("ATE0");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CIPMODE=1");
+  this->sendSimATCmd("AT+CIPMODE=1");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CSOCKSETPN=1");
+  this->sendSimATCmd("AT+CSOCKSETPN=1");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("AT+CIPMODE=0");
+  // this->sendSimATCmd("AT+CIPMODE=0");
   // vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+NETOPEN");
+  this->sendSimATCmd("AT+NETOPEN");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+NETOPEN?");
-  // sendSimATCmd("AT+CIPMODE=0");
+  this->sendSimATCmd("AT+NETOPEN?");
+  // this->sendSimATCmd("AT+CIPMODE=0");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CMQTTCONNECT?");
+  this->sendSimATCmd("AT+CMQTTCONNECT?");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CMQTTSTART");
+  this->sendSimATCmd("AT+CMQTTSTART");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CMQTTACCQ=0,\"espmqtt\"");
+  this->sendSimATCmd("AT+CMQTTACCQ=0,\"espmqtt\"");
   vTaskDelay(100 / portTICK_PERIOD_MS);
   
 }
@@ -444,19 +448,19 @@ void disconnect_mqtt(){
 // AT+CMQTTDISC
 }
 
-void connect_mqtt_server(){
-  sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://broker.mqtt.cool:1883\",60,1");
-  // sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://mqtt-dashboard.com:8884\",60,1");
+void LTE_MODEM::connect_mqtt_server(){
+  this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://broker.mqtt.cool:1883\",60,1");
+  // this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://mqtt-dashboard.com:8884\",60,1");
   
   vTaskDelay(500 / portTICK_PERIOD_MS);
   
-  sendSimATCmd("AT+CMQTTCONNECT?");
-  // sendSimATCmd("AT+CMQTTSUB=0,9,1,1");
+  this->sendSimATCmd("AT+CMQTTCONNECT?");
+  // this->sendSimATCmd("AT+CMQTTSUB=0,9,1,1");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  // sendSimATCmd("test/1234"); // \x1A -> close
+  // this->sendSimATCmd("test/1234"); // \x1A -> close
 }
 
-void sendSimATMsg(const char* cmd){
+void LTE_MODEM::sendSimATMsg(const char* cmd){
   char* Txdata = (char*) malloc(100);
 
   sprintf(Txdata, "%s",cmd);
@@ -465,7 +469,7 @@ void sendSimATMsg(const char* cmd){
   free(Txdata);
 }
 
-void sendSimATCmd(const char* cmd){
+void LTE_MODEM::sendSimATCmd(const char* cmd){
   char* Txdata = (char*) malloc(100);
 
   sprintf(Txdata, "%s\r\n",cmd);
@@ -474,7 +478,7 @@ void sendSimATCmd(const char* cmd){
   free(Txdata);
 }
 
-// void sendSimATCmd(const char* cmd, uint32_t timeout_ms){
+// void this->sendSimATCmd(const char* cmd, uint32_t timeout_ms){
 //   char* Txdata = (char*) malloc(100);
 //   uint64_t startMillis = esp_timer_get_time();
 
@@ -496,7 +500,7 @@ void sendSimATCmd(const char* cmd){
 // }
 
 
-void rx_mqtt_msg(const char* topicNm, const char* payLoad){
+void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
   printf("topic : %s , %d / payLoad : %s , %d \n", topicNm, strlen(topicNm), payLoad, strlen(payLoad));
   // payLoad = replaceAll(payLoad, "\n", "");
 
@@ -516,25 +520,25 @@ void rx_mqtt_msg(const char* topicNm, const char* payLoad){
       send_topic_mqtt("test/1234", "hello aa i'm aab");
     }else if(strncmp(payLoad, "HTTP REQUEST", strlen(payLoad)) == 0){
       // vTaskDelay(50 / portTICK_PERIOD_MS);
-      http_req();
+      // http_req();
     }else if(strncmp(payLoad, "GET GPS", strlen(payLoad)) == 0){
-      sendSimATCmd("AT+CGPSINFO?");
+      this->sendSimATCmd("AT+CGPSINFO?");
       // vTaskDelay(50 / portTICK_PERIOD_MS);
-      sendSimATCmd("AT+CGPSINFO");
+      this->sendSimATCmd("AT+CGPSINFO");
       // vTaskDelay(100 / portTICK_PERIOD_MS);
       
       // http_req();
     }else if(strncmp(payLoad, "RESET DEVICE", strlen(payLoad)) == 0){
-      mainState = MODE_RECONNECT_INIT;
+      this->mainState = MainState_t::MODE_RECONNECT_INIT;
     }else if(strncmp(payLoad, "HTTP_REQ", strlen(payLoad)) == 0){
-      http_req();
+      // http_req();
     }else if(strncmp(payLoad, "CAN SEND", strlen(payLoad)) == 0){
       
       // Car->remote_start = true;
-      // mainState = MODE_RECONNECT_INIT;
-      // sendSimATCmd("AT+CGPSINFO?");
+      // this->mainState = MODE_RECONNECT_INIT;
+      // this->sendSimATCmd("AT+CGPSINFO?");
       // vTaskDelay(50 / portTICK_PERIOD_MS);
-      // sendSimATCmd("AT+CGPSINFO");
+      // this->sendSimATCmd("AT+CGPSINFO");
       // vTaskDelay(100 / portTICK_PERIOD_MS);
       
       // http_req();
@@ -544,13 +548,13 @@ void rx_mqtt_msg(const char* topicNm, const char* payLoad){
   }
 }
 
-void subscribe_mqtt(const char* nm){
+void LTE_MODEM::subscribe_mqtt(const char* nm){
   char* sub_cmd = (char*) malloc(100);
 
   sprintf(sub_cmd, "AT+CMQTTSUB=0,%d,1", strlen(nm));
-  sendSimATCmd((const char*) sub_cmd);
+  this->sendSimATCmd((const char*) sub_cmd);
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  sendSimATMsg(nm);
+  this->sendSimATMsg(nm);
 }
 
 char* getMqttResponse(){
@@ -564,114 +568,126 @@ char* getMqttResponse(){
   return (char*)rx_buffer;
 }
 
-void send_topic_mqtt(const char* nm, const char* msg){
+void LTE_MODEM::send_topic_mqtt(const char* nm, const char* msg){
 
   char* topic_cmd = (char*) malloc(100);
   sprintf(topic_cmd, "AT+CMQTTTOPIC=0,%d", strlen(nm));
-  sendSimATCmd((const char*)topic_cmd);
+  this->sendSimATCmd((const char*)topic_cmd);
   vTaskDelay(50 / portTICK_PERIOD_MS);
-  sendSimATMsg(nm);
+  this->sendSimATMsg(nm);
   vTaskDelay(50 / portTICK_PERIOD_MS);
 
   char* payload_cmd = (char*) malloc(100);
   sprintf(payload_cmd, "AT+CMQTTPAYLOAD=0,%d", strlen(msg));
 
-  sendSimATCmd((const char*)payload_cmd);
+  this->sendSimATCmd((const char*)payload_cmd);
   vTaskDelay(50 / portTICK_PERIOD_MS);
-  sendSimATMsg(msg);
+  this->sendSimATMsg(msg);
   vTaskDelay(50 / portTICK_PERIOD_MS);
-  sendSimATCmd("AT+CMQTTPUB=0,1,60");
+  this->sendSimATCmd("AT+CMQTTPUB=0,1,60");
   vTaskDelay(50 / portTICK_PERIOD_MS);
   // char* res = getMqttResponse();
   // // +CMQTTPUB: 0,0
   // ESP_LOGI(TAG, "Read : '%s' \n", res);
 }
 
-void call_sim_spam_task(void *arg){
+void LTE_MODEM::call_sim_spam_task(void *arg){
 
-// sendSimATCmd("AT+CMGF=1");
-// sendSimATCmd("AT+CMSS=1");
+// this->sendSimATCmd("AT+CMGF=1");
+// this->sendSimATCmd("AT+CMSS=1");
 
   while(1){
-    sendSimATCmd("ATD01099819709;");
+    this->sendSimATCmd("ATD01099819709;");
     ESP_LOGI(TAG, "CALL\n");
     
     vTaskDelay(7500 / portTICK_PERIOD_MS);
-    sendSimATCmd("AT+CHUP");
-    sendSimATCmd("AT&F");
+    this->sendSimATCmd("AT+CHUP");
+    this->sendSimATCmd("AT&F");
     ESP_LOGI(TAG, "HNAG UP\n");
   }
   vTaskDelete(NULL);
 }
 
-void tx_task(void *arg){
+void LTE_MODEM::tx_task(void *arg){
 
   while(1){
-    sendSimATCmd("AT+GMR");
+    this->sendSimATCmd("AT+GMR");
     vTaskDelay(2000 / portTICK_PERIOD_MS);
   }
   vTaskDelete(NULL);
 }
 
-void modem_reset(){
-  // mainState = MODEM_COMMAND_MODE;
-  sendSimATCmd("AT+CRESET");
+void LTE_MODEM::modem_reset(){
+  // this->mainState = MODEM_COMMAND_MODE;
+  this->sendSimATCmd("AT+CRESET");
 }
 
-void status_task(void *arg){
+void LTE_MODEM::uodate_task_status(MainState_t status){
+  this->mainState = status;
+}
+
+
+[[noreturn]]
+void LTE_MODEM::status_task_loop(){
   uint64_t startMillis = esp_timer_get_time() / 1000;
-  mainState = MODE_RECONNECT_INIT;
+  this->mainState = MainState_t::MODE_RECONNECT_INIT;
 
   while(1){
     // if((esp_timer_get_time() - startMillis) / 1000 > 10 * 1000 ){
     //   startMillis = esp_timer_get_time();
     //   printf("SEND AT COMMAND\n");
-    //   sendSimATCmd("AT");
+    //   this->sendSimATCmd("AT");
     // }
 
-    switch (mainState) {
-      case MODE_START:
+    switch (this->mainState) {
+      case MainState_t::TEST:
+        printf("TEST MODE!!!");
+        this->mainState = MainState_t::MODE_START;
+
+        break;
+      case MainState_t::MODE_START:
+      // printf("hello");
         if((esp_timer_get_time() / 1000 - startMillis) > 60 * 1000){
-          mainState = MODE_RECONNECT_INIT;
+          this->mainState = MainState_t::MODE_RECONNECT_INIT;
         }
 
         // else if((esp_timer_get_time() - startMillis) / 1000 > 5 * 1000){
-        //   sendSimATCmd("AT+CPSI?");
+        //   this->sendSimATCmd("AT+CPSI?");
         // }
 
         break;
-      case MODE_CONNECTING:
+      case MainState_t::MODE_CONNECTING:
         break;
-      case MODE_CONNECTED:
+      case MainState_t::MODE_CONNECTED:
           if((esp_timer_get_time() / 1000 - startMillis) > 60 * 1000){
-            sendSimATCmd("AT+CMQTTCONNECT?");
+            this->sendSimATCmd("AT+CMQTTCONNECT?");
             startMillis = esp_timer_get_time() / 1000;
           }
 
         break;
-      case MODE_INIT:
+      case MainState_t::MODE_INIT:
         vTaskDelay(100 / portTICK_PERIOD_MS);
-        // sendSimATCmd("AT+COPS?");
+        // this->sendSimATCmd("AT+COPS?");
         // vTaskDelay(500 / portTICK_PERIOD_MS);
-        sendSimATCmd("AT+CPSI?");
+        this->sendSimATCmd("AT+CPSI?");
         vTaskDelay(500 / portTICK_PERIOD_MS);
-        sendSimATCmd("AT+CGPS=0");
+        this->sendSimATCmd("AT+CGPS=0");
         vTaskDelay(500 / portTICK_PERIOD_MS);
-        sendSimATCmd("AT+CGPS=?");
+        this->sendSimATCmd("AT+CGPS=?");
         vTaskDelay(500 / portTICK_PERIOD_MS);
 
         // startMillis = esp_timer_get_time();
         // if((esp_timer_get_time() - startMillis) / 1000 > 30 * 1000){
-        //   mainState = MODE_RECONNECT_INIT;
+        //   this->mainState = MODE_RECONNECT_INIT;
         // }
 
-        // mainState = MODE_START;
+        // this->mainState = MODE_START;
         break;
-      case MODE_RECONNECT_INIT:
+      case MainState_t::MODE_RECONNECT_INIT:
         printf("RESET DEVICE\n");
-        modem_reset();
+        this->modem_reset();
         startMillis = esp_timer_get_time() / 1000;
-        mainState = MODE_START;
+        this->mainState = MainState_t::MODE_START;
         break;
       default:
         break;
@@ -680,7 +696,8 @@ void status_task(void *arg){
   }
 }
 
-void rx_task(void *arg){
+[[noreturn]]
+void LTE_MODEM::rx_task_loop(){
   static const char *RX_TASK_TAG = "RX_TASK";
   esp_log_level_set(RX_TASK_TAG, ESP_LOG_INFO);
   int rxBytes;  
@@ -705,31 +722,31 @@ void rx_task(void *arg){
       ESP_LOGI(RX_TASK_TAG, "Readaa %d \n", rx_buffer[0]);
 
       // if(rxBytes > 1){
-      //   sendSimATCmd("AT");
+      //   this->sendSimATCmd("AT");
       // }
 
-      if(mainState == MODE_START){
+      if(this->mainState == MainState_t::MODE_START){
         if(strstr((const char*) rx_buffer, "AT") &&
         strstr((const char*) rx_buffer, "OK") &&
         rxBytes == 9
         ){
-          sendSimATCmd("AT+CPSI?");
+          this->sendSimATCmd("AT+CPSI?");
         }else if(rxBytes < 9){
-          sendSimATCmd("AT");
+          this->sendSimATCmd("AT");
         }
       }else if(strstr((const char*) rx_buffer, "+CME ERROR: SIM busy")) {
         // AT+CRESET OK change to MODE START
-        // sendSimATCmd("AT");
-        mainState = MODE_RECONNECT_INIT;
+        // this->sendSimATCmd("AT");
+        this->mainState = MainState_t::MODE_RECONNECT_INIT;
       }else if(strstr((const char*) rx_buffer, "RDY")){
-        mainState = MODE_INIT;
+        this->mainState = MainState_t::MODE_INIT;
       }else if(strstr((const char*) rx_buffer, "+CPSI: NO SERVICE")) {
         // +CPSI: NO SERVICE,Online
         // +CPSI: NO SERVICE,Unknown
         vTaskDelay(500 / portTICK_PERIOD_MS);
-        sendSimATCmd("AT+CGPS=0");
-        // sendSimATCmd("AT");
-        // mainState = MODE_RECONNECT_INIT;
+        this->sendSimATCmd("AT+CGPS=0");
+        // this->sendSimATCmd("AT");
+        // this->mainState = MODE_RECONNECT_INIT;
       }else if(strstr((const char*) rx_buffer, "PB DONE") ||
       strstr((const char*) rx_buffer, "+CPSI: LTE,Online") ||
       (
@@ -739,29 +756,29 @@ void rx_task(void *arg){
       // strstr((const char*) rx_buffer, "RDY")
       ){
         vTaskDelay(5000 / portTICK_PERIOD_MS);
-          sendSimATCmd("AT+CFUN=1");
+          this->sendSimATCmd("AT+CFUN=1");
           vTaskDelay(100 / portTICK_PERIOD_MS);
-          sendSimATCmd("AT+CGACT=1,1");
+          this->sendSimATCmd("AT+CGACT=1,1");
           vTaskDelay(100 / portTICK_PERIOD_MS);
       }else if(strstr((const char*) rx_buffer, "AT+CGACT=1,1")){
         init_mqtt();
-        mainState = MODE_CONNECTING;
+        this->mainState = MainState_t::MODE_CONNECTING;
       }else if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23") ||
       strstr((const char*) rx_buffer, "+CMQTTSTART: 0")
       ){
-        connect_mqtt_server();
+        this->connect_mqtt_server();
       }else if(strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,0") ||
       strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,")
       ){
-        subscribe_mqtt("test/1234");
-        mainState = MODE_CONNECTED;
+        this->subscribe_mqtt("test/1234");
+        this->mainState = MainState_t::MODE_CONNECTED;
       }else if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
-        connect_mqtt_server();
-        mainState = MODE_CONNECTING;
+        this->connect_mqtt_server();
+        this->mainState = MainState_t::MODE_CONNECTING;
       }else if(strstr((const char*) rx_buffer, "+CGPSINFO: 0")){
-        sendSimATCmd("AT+CGPS=1,1");
+        this->sendSimATCmd("AT+CGPS=1,1");
         vTaskDelay(50 / portTICK_PERIOD_MS);
-        sendSimATCmd("AT+CGPS?");
+        this->sendSimATCmd("AT+CGPS?");
         vTaskDelay(50 / portTICK_PERIOD_MS);
       }else if(strstr((const char*) rx_buffer, "+CIPEVENT: NETWORK CLOSED") ||
         // strstr((const char*) rx_buffer, "+CIPEVENT: NETWORK CLOSED UNEXPECTEDLY") ||
@@ -770,7 +787,7 @@ void rx_task(void *arg){
         strstr((const char*) rx_buffer, "ERROR")
         )
        ){
-        mainState = MODE_RECONNECT_INIT;
+        this->mainState = MainState_t::MODE_RECONNECT_INIT;
       }else if(strstr((const char*) rx_buffer, "+CMQTTRXPAYLOAD: 0") && strstr((const char*) rx_buffer, "+CMQTTRXEND: 0")){
       // TOPIC Receive
 
@@ -786,7 +803,7 @@ void rx_task(void *arg){
         char* payLoad = replaceAll(pch, "\r", "");
         payLoad = rtrim(ltrim(payLoad));
 
-        rx_mqtt_msg((const char*) topicNm, (const char*) payLoad);
+        this->rx_mqtt_msg((const char*) topicNm, (const char*) payLoad);
       }
     }
     // vTaskDelay(10 / portTICK_PERIOD_MS);
