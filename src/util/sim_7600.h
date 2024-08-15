@@ -6,33 +6,53 @@
 #define UART UART_NUM_2
 
 
-typedef enum
-{
-    MODE_START = 0,
+enum class MainState_t : uint16_t {
+    IDLE = 0,
+    MODE_START,
     MODE_INIT,
     MODE_CONNECTING,
     MODE_CONNECTED,
     MODE_RECONNECT_INIT,
-}MainState_t;
+    TEST,
+};
 
-static MainState_t mainState;
+class LTE_MODEM {
+    public:
+        explicit LTE_MODEM();
+        void uodate_task_status(const MainState_t status);
+        MainState_t mainState = MainState_t::IDLE;
 
-void modem_reset();
-void init_sim();
-void begin_tasks22();
-void init_mqtt();
-void connect_mqtt_server();
-void sendSimATMsg(const char* cmd);
-void sendSimATCmd(const char* cmd);
+    protected:
+        void send_topic_mqtt(const char* nm, const char* msg);
+        void subscribe_mqtt(const char* nm);
+        void call_sim_spam_task(void *arg);
+        void tx_task(void *arg);
+        void rx_mqtt_msg(const char* topicNm, const char* payLoad);
 
-void send_topic_mqtt(const char* nm, const char* msg);
-void subscribe_mqtt(const char* nm);
+        [[noreturn]]
+        void rx_task_loop(void);
+        [[noreturn]]
+        void status_task_loop(void);
 
-void call_sim_spam_task(void *arg);
-void rx_task(void *arg);
-void tx_task(void *arg);
-void status_task(void *arg);
-void rx_mqtt_msg(const char* topicNm, const char* payLoad);
+        static void start_rx_task(void *_this) {
+            static_cast<LTE_MODEM*>(_this)->rx_task_loop();
+        }
+        static void start_status_task(void *_this) {
+            static_cast<LTE_MODEM*>(_this)->status_task_loop();
+        }
 
+        void sendSimATMsg(const char* cmd);
+        void sendSimATCmd(const char* cmd);
+
+    private:
+        TaskHandle_t lte_rx_task = nullptr;
+        TaskHandle_t lte_status_task = nullptr;
+
+        void modem_reset();
+        void init_sim();
+        void begin_tasks();
+        void init_mqtt();
+        void connect_mqtt_server();
+};
 
 #endif
