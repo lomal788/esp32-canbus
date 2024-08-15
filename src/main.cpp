@@ -14,7 +14,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_timer.h"
-#include "util/sim_7600.h"
+// #include "util/sim_7600.h"
 #include "util/http_server.h"
 #include "util/mqtt_manage.h"
 #include "util/wifi_config.h"
@@ -54,8 +54,6 @@ extern "C" void app_main(void) {
   if (!twai_can_hal->begin_tasks()) {
     printf("can task err");
   }
-
-  init_sim();
 
   // xTaskCreate(&rx_task, "uart_rx_task", 1024*2, NULL, 5, NULL);
 
