@@ -21,7 +21,7 @@ const unsigned int doorCatchId = 274; // Door Catch Push ID 0x112
 const unsigned int doorStateId = 360; // Door Open State ID 0x168
 const unsigned int keyInId = 273; // KeyOn Acc Start State 0x111
 
-BaseCan* twai_can_hal = nullptr;
+// BaseCan* twai_can_hal = nullptr;
 
 BaseCan::BaseCan(const char* name, uint8_t tx_time_ms, uint32_t baud) {
   this->name = name;
