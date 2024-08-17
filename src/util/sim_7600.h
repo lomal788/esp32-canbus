@@ -1,8 +1,11 @@
-#ifndef SIM_7600
-#define SIM_7600
+#ifndef _SIM_7600_H_
+#define _SIM_7600_H_
 
 #include <nvs_flash.h>
 #include <nvs.h>
+// #include "util/car/twai_base.h"
+// #include "util/car/car.h"
+
 #define UART UART_NUM_2
 
 
@@ -16,14 +19,24 @@ enum class MainState_t : uint16_t {
     TEST,
 };
 
+enum class CarControlState : uint16_t {
+    IDLE = 0,
+    TEST,
+    REMOTE_START,
+    ENGIN_OFF,
+};
+
 class LTE_MODEM {
     public:
-        explicit LTE_MODEM();
+        // LTE_MODEM(Car** car_can_hal);
+        LTE_MODEM();
+        ~LTE_MODEM();
         void uodate_task_status(const MainState_t status);
         MainState_t mainState = MainState_t::IDLE;
-
-    protected:
+        CarControlState carControlState = CarControlState::IDLE;
         void send_topic_mqtt(const char* nm, const char* msg);
+    protected:
+        
         void subscribe_mqtt(const char* nm);
         void call_sim_spam_task(void *arg);
         void tx_task(void *arg);
@@ -47,6 +60,9 @@ class LTE_MODEM {
     private:
         TaskHandle_t lte_rx_task = nullptr;
         TaskHandle_t lte_status_task = nullptr;
+        // Car** car_can_hal;
+
+        // CAR_SATUS_ENUM tests = CAR_SATUS_ENUM::IDLE;
 
         void modem_reset();
         void init_sim();
@@ -54,5 +70,8 @@ class LTE_MODEM {
         void init_mqtt();
         void connect_mqtt_server();
 };
+
+// extern LTE_MODEM* lte_modem;
+
 
 #endif
