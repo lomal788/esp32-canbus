@@ -19,6 +19,8 @@
 
 #define TAG "main"
 
+Car* twai_can_hal = nullptr;
+
 Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx_time_ms, baud) {
 
   tx.extd = 0;
@@ -28,13 +30,19 @@ Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx
   tx.dlc_non_comp = 0;
 
   // Set KeyFob
-  gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
+  // gpio_set_direction(GPIO_NUM_21, GPIO_MODE_OUTPUT);
 
   // ACC
   // GPIO_MODE_OUTPUT
-  gpio_set_direction(GPIO_NUM_16, GPIO_MODE_OUTPUT_OD);
+  // 22 GPIO WORK
+  // gpio_set_direction(GPIO_NUM_22, GPIO_MODE_INPUT_OUTPUT_OD);
   // ON
-  gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT_OD);
+  // gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT_OD);
+  // Start Button
+  gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
+  // KeyFob
+  gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT_OD);
+
 }
 
 void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) {
@@ -92,7 +100,8 @@ void Car::on_begin_task_done() {
         }
     }
 
-    LTE = new LTE_MODEM();
+  // this->LTE = new LTE_MODEM(&twai_can_hal);
+  this->LTE = new LTE_MODEM();
 }
 
 [[noreturn]]
@@ -101,9 +110,21 @@ void Car::car_task_loop() {
 
   while(1){
     now = esp_timer_get_time() / 1000;
+
+    if(this->LTE->carControlState == CarControlState::REMOTE_START){
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->car_status = CAR_SATUS_ENUM::R_START_BEGIN;
+    }else if(this->LTE->carControlState == CarControlState::ENGIN_OFF){
+        this->remote_expire_time = 5000;
+        this->remote_start_time = esp_timer_get_time() / 1000;
+        this->LTE->carControlState = CarControlState::IDLE;
+        this->car_status = CAR_SATUS_ENUM::R_STARTED;
+    }
+
     if(this->car_status == CAR_SATUS_ENUM::IDLE){
+      // this->relay_handle(1);
       // printf("CAR IS IN IDLE ");
-      // this->LTE->mainState = MainState_t::MODE_START;
+      // this->LTE->mainState = MainState_t::TEST;
 
       // LTE->uodate_task_status(MainState_t::TEST);
 
@@ -116,34 +137,48 @@ void Car::car_task_loop() {
       // ACC ON
       this->relay_handle(1);
       // TRYING TO START CAR
-      this->relay_handle(3);
+      gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
+      gpio_set_level(GPIO_NUM_22, 1);
       this->car_status = CAR_SATUS_ENUM::R_STARTING;
     }else if(this->car_status == CAR_SATUS_ENUM::R_STARTING){
-      this->ecu_jerry.GET_EMS11_DATA(now, 100, &this->ems11Data);
+      this->ecu_jerry.GET_EMS11_DATA(now, 500, &this->ems11Data);
+      printf("\n");
+      printf("RPM RAW : %llu\n", this->ems11Data.raw);
+      printf("RPM RAW : %d\n", this->ems11Data.RPM);
+      printf("RPM : %f\n", reverse_bytes(this->ems11Data.RPM) * 0.25);
+      printf("\n");
 
-      if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300){
+      if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300.0){
+        gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
+        gpio_set_level(GPIO_NUM_22, 0);
         // Default 15 Mins Car
-        this->remote_expire_time = now + 1000 * 60 * 15 ;
+        // this->remote_expire_time = 1000 * 60 * 15 ;
+        this->remote_expire_time = 5000 ;
+        this->remote_start_time = esp_timer_get_time() / 1000;
+        this->LTE->send_topic_mqtt("test/1234", "ENGINE_ON COMPLETE");
         this->car_status = CAR_SATUS_ENUM::R_STARTED;
       }
     }else if(this->car_status == CAR_SATUS_ENUM::R_STARTED){
-      if(now > now + this->remote_expire_time ){
+      printf("Engine IS RUNNING\n");
+      if(now > this->remote_start_time + this->remote_expire_time ){
+        printf("Engine Stopping Proccess\n");
         // engine stop Status Start
-        this->setKeyFobStatus(false);
         this->relay_handle(1);
+        this->setKeyFobStatus(false);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         this->car_status = CAR_SATUS_ENUM::R_STOPING;
       }
 
       // Car State Topic
     }else if(this->car_status == CAR_SATUS_ENUM::R_STOPING){
-      this->ecu_jerry.GET_CLU2_DATA(now, 500, &this->clu2Data);
+      this->ecu_jerry.GET_CLU2_DATA(now, 20000, &this->clu2Data);
       if(this->clu2Data.CF_Clu_IGNSw == 0){
         if(this->keyfob){
           this->setKeyFobStatus(false);
         }
         this->car_status = CAR_SATUS_ENUM::R_STOPED;
       } else {
-        this->ecu_jerry.GET_EMS11_DATA(now, 500, &this->ems11Data);
+        this->ecu_jerry.GET_EMS11_DATA(now, 20000, &this->ems11Data);
         if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300){
           this->setKeyFobStatus(false);
           this->relay_handle(1);
@@ -153,12 +188,17 @@ void Car::car_task_loop() {
         }
       }
     }else if(this->car_status == CAR_SATUS_ENUM::R_STOPED){
+      this->LTE->send_topic_mqtt("test/1234", "ENGINE_OFF COMPLETE");
       this->remote_expire_time = 0;
+      this->remote_start_time = 0;
       this->car_status = CAR_SATUS_ENUM::IDLE;
       // Car Stop Data Send
 
     }else if(this->car_status == CAR_SATUS_ENUM::M5){
-
+      printf("m5 State \n");
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->car_status = CAR_SATUS_ENUM::IDLE;
     }
 
     vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -267,26 +307,37 @@ static void test(void *arg){
 
 // 1 ACC 2 ACC ON, 3 ACC AND START, 4 ALL OFF
 void Car::relay_handle(int relayType){
+  // Start Button
+  gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
+  // KeyFob
+  gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT_OD);
 
   if(this->keyfob == false || this->remote_start == false){
-    return;
+    // return;
   }
 
   if(relayType == 1){
     printf("ACC on\n");
-    gpio_set_level(GPIO_NUM_16, 0);
+    gpio_set_level(GPIO_NUM_22, 1);
+    gpio_set_level(GPIO_NUM_10, 1);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_NUM_22, 0);
+    gpio_set_level(GPIO_NUM_10, 0);
   }else if(relayType == 2){
     printf("ACC ON\n");
     gpio_set_level(GPIO_NUM_16, 0);
+    gpio_set_level(GPIO_NUM_16, 1);
     printf("ON ON\n");
     gpio_set_level(GPIO_NUM_18, 0);
+    gpio_set_level(GPIO_NUM_18, 1);
   }else if(relayType == 3){
     printf("ACC ON\n");
-    gpio_set_level(GPIO_NUM_16, 0);
+    // gpio_set_level(GPIO_NUM_10, 1);
+    gpio_set_level(GPIO_NUM_22, 1);
     printf("TRYING TO START CAR\n");
-    gpio_set_level(GPIO_NUM_18, 0);
+    // gpio_set_level(GPIO_NUM_18, 0);
     vTaskDelay(10000 / portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_NUM_18, 1);
+    gpio_set_level(GPIO_NUM_22, 0);
   }else if(relayType == 4){
     printf("Relay off\n");
     gpio_set_level(GPIO_NUM_18, 1);
