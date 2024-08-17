@@ -1,5 +1,5 @@
-#ifndef _Car_H_
-#define _Car_H_
+#ifndef _CAR_H_
+#define _CAR_H_
 
 #include <nvs_flash.h>
 #include <nvs.h>
@@ -21,9 +21,13 @@ enum class CAR_SATUS_ENUM : uint16_t {
     M9 = 10,
 };
 
+class LTE_MODEM;
+
 class Car: public BaseCan{
     public:
         explicit Car(const char* name, uint8_t tx_time_ms, uint32_t baud);
+        CAR_SATUS_ENUM car_status = CAR_SATUS_ENUM::IDLE; // 0 off, 1 acc , 2 on
+
     protected:
         void on_begin_task_done() override;
         void tx_frames(uint8_t bus) override;
@@ -43,9 +47,9 @@ class Car: public BaseCan{
         LTE_MODEM* LTE;
         ECU_JERRY ecu_jerry = ECU_JERRY();
         TaskHandle_t car_task = nullptr;
-        CAR_SATUS_ENUM car_status = CAR_SATUS_ENUM::IDLE; // 0 off, 1 acc , 2 on
         bool keyfob = false;
         bool remote_start = false;
+        uint64_t remote_start_time = 0;
         uint64_t remote_expire_time = 0;
         bool ingition = false;
         uint16_t batt = 0;
@@ -57,5 +61,7 @@ class Car: public BaseCan{
         CLU2_CAN clu2Data;
         EMS11_CAN ems11Data;
 };
+
+extern Car* twai_can_hal;
 
 #endif
