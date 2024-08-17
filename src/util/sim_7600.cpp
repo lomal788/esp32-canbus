@@ -19,6 +19,8 @@
 // #define LOG_LOCAL_LEVEL ESP_LOG_VERBOSE
 // #define LOG_LOCAL_LEVEL ESP_LOG_DEBUG
 #include "esp_log.h"
+#include "car/car.h"
+#include "car/twai_base.h"
 
 #define TAG "main"
 
@@ -29,6 +31,16 @@ static const int RX_BUF_SIZE = 1024 * 2;
 #define RXD_PIN (GPIO_NUM_27)
 
 // #define UART UART_NUM_2
+
+// LTE_MODEM::LTE_MODEM(Car** car_can_hal) {
+LTE_MODEM::LTE_MODEM() {
+  // this->car_can_hal = car_can_hal;
+
+  this->init_sim();
+}
+
+LTE_MODEM::~LTE_MODEM() {
+}
 
 char* rtrim(char* s) {
   char t[MAX_STR_LEN];
@@ -152,11 +164,6 @@ char *replaceAll(char *s, const char *olds, const char *news) {
   *sr = '\0';
 
   return result;
-}
-
-LTE_MODEM::LTE_MODEM() {
-
-  this->init_sim();
 }
 
 void LTE_MODEM::init_sim(){
@@ -376,7 +383,7 @@ void LTE_MODEM::begin_tasks(){
   printf("START SIM INIT \n");
   // this->mainState = MODE_START;
   
-  xTaskCreate(&this->start_rx_task, "uart_rx_task", 1024*4, this, 5, &this->lte_rx_task);
+  xTaskCreate(&this->start_rx_task, "uart_rx_task", 1024*8, this, 5, &this->lte_rx_task);
   xTaskCreate(&this->start_status_task, "uart_status_task", 1024*4, this, 5, &this->lte_status_task);
   // vTaskDelay(100 / portTICK_PERIOD_MS);
 
@@ -499,7 +506,6 @@ void LTE_MODEM::sendSimATCmd(const char* cmd){
 //   }
 // }
 
-
 void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
   printf("topic : %s , %d / payLoad : %s , %d \n", topicNm, strlen(topicNm), payLoad, strlen(payLoad));
   // payLoad = replaceAll(payLoad, "\n", "");
@@ -542,8 +548,11 @@ void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
       // vTaskDelay(100 / portTICK_PERIOD_MS);
       
       // http_req();
+    }else if(strncmp(payLoad, "ENGINE ON", strlen(payLoad)) == 0){
+      this->carControlState = CarControlState::REMOTE_START;
+    }else if(strncmp(payLoad, "ENGINE OFF", strlen(payLoad)) == 0){
+      this->carControlState = CarControlState::ENGIN_OFF;
     }
-
     
   }
 }
@@ -626,7 +635,6 @@ void LTE_MODEM::uodate_task_status(MainState_t status){
   this->mainState = status;
 }
 
-
 [[noreturn]]
 void LTE_MODEM::status_task_loop(){
   uint64_t startMillis = esp_timer_get_time() / 1000;
@@ -643,7 +651,10 @@ void LTE_MODEM::status_task_loop(){
       case MainState_t::TEST:
         printf("TEST MODE!!!");
         this->mainState = MainState_t::MODE_START;
+        // this->car_can_hal.car_status = CAR_SATUS_ENUM::M5;
 
+        break;
+      case MainState_t::IDLE:
         break;
       case MainState_t::MODE_START:
       // printf("hello");
@@ -712,20 +723,25 @@ void LTE_MODEM::rx_task_loop(){
     //   ESP_LOGI(TAG, "received %d bytes\n", length);
     // }
 
-    rxBytes = uart_read_bytes(UART, rx_buffer, RX_BUF_SIZE, 10);
+    rxBytes = uart_read_bytes(UART, rx_buffer, RX_BUF_SIZE, 0);
 
     if (rxBytes > 0) {
       rx_buffer[rxBytes] = 0;
       // String aa = "";
       // rx_buffer = replaceAll(rx_buffer,"\r\n", "OK");
       ESP_LOGI(RX_TASK_TAG, "Read %d bytes: '%s'\n", rxBytes, rx_buffer);
-      ESP_LOGI(RX_TASK_TAG, "Readaa %d \n", rx_buffer[0]);
+      // ESP_LOGI(RX_TASK_TAG, "Readaa %d", rx_buffer[0]);
 
       // if(rxBytes > 1){
       //   this->sendSimATCmd("AT");
       // }
+      if(this->mainState == MainState_t::IDLE){
+        printf("Change Car State to M5");
+        // if(this->car_can_hal->car_status == CAR_SATUS_ENUM::IDLE){
+        //   this->car_can_hal->car_status = CAR_SATUS_ENUM::M5;
+        // }
 
-      if(this->mainState == MainState_t::MODE_START){
+      }else if(this->mainState == MainState_t::MODE_START){
         if(strstr((const char*) rx_buffer, "AT") &&
         strstr((const char*) rx_buffer, "OK") &&
         rxBytes == 9
@@ -734,7 +750,10 @@ void LTE_MODEM::rx_task_loop(){
         }else if(rxBytes < 9){
           this->sendSimATCmd("AT");
         }
-      }else if(strstr((const char*) rx_buffer, "+CME ERROR: SIM busy")) {
+      }else if(
+        strstr((const char*) rx_buffer, "+CME ERROR: SIM busy")
+        // || strstr((const char*) rx_buffer, "+CME ERROR: SIM not inserted")
+        ) {
         // AT+CRESET OK change to MODE START
         // this->sendSimATCmd("AT");
         this->mainState = MainState_t::MODE_RECONNECT_INIT;
@@ -747,7 +766,8 @@ void LTE_MODEM::rx_task_loop(){
         this->sendSimATCmd("AT+CGPS=0");
         // this->sendSimATCmd("AT");
         // this->mainState = MODE_RECONNECT_INIT;
-      }else if(strstr((const char*) rx_buffer, "PB DONE") ||
+      }
+      if(strstr((const char*) rx_buffer, "PB DONE") ||
       strstr((const char*) rx_buffer, "+CPSI: LTE,Online") ||
       (
         strstr((const char*) rx_buffer, "+COPS: 0") &&
@@ -760,15 +780,20 @@ void LTE_MODEM::rx_task_loop(){
           vTaskDelay(100 / portTICK_PERIOD_MS);
           this->sendSimATCmd("AT+CGACT=1,1");
           vTaskDelay(100 / portTICK_PERIOD_MS);
-      }else if(strstr((const char*) rx_buffer, "AT+CGACT=1,1")){
+      }
+      if(strstr((const char*) rx_buffer, "AT+CGACT=1,1")){
         init_mqtt();
         this->mainState = MainState_t::MODE_CONNECTING;
       }else if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23") ||
       strstr((const char*) rx_buffer, "+CMQTTSTART: 0")
       ){
         this->connect_mqtt_server();
-      }else if(strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,0") ||
-      strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,")
+      }else if(
+        (
+          strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,0") ||
+          strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,")
+        ) &&
+        !strstr((const char*) rx_buffer, "+CMQTTCONNECT: 1")
       ){
         this->subscribe_mqtt("test/1234");
         this->mainState = MainState_t::MODE_CONNECTED;
@@ -806,7 +831,7 @@ void LTE_MODEM::rx_task_loop(){
         this->rx_mqtt_msg((const char*) topicNm, (const char*) payLoad);
       }
     }
-    // vTaskDelay(10 / portTICK_PERIOD_MS);
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 
   free(rx_buffer);
@@ -816,3 +841,4 @@ void LTE_MODEM::rx_task_loop(){
   // init_sim();
   // xTaskCreate(&rx_task, "uart_rx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
   // send_topic_mqtt("test/1234", "abcasd");
+
