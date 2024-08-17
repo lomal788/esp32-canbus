@@ -87,6 +87,6 @@ class BaseCan {
         };
 };
 
-extern BaseCan* twai_can_hal;
+// extern BaseCan* twai_can_hal;
 
 #endif
