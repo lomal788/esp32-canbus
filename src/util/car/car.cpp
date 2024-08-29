@@ -113,10 +113,7 @@ void Car::car_task_loop() {
   while(1){
     now = esp_timer_get_time() / 1000;
 
-    if(this->LTE->carControlState == CarControlState::GET_CAR_STATUS){
-      this->LTE->carControlState = CarControlState::IDLE;
-      this->car_info_send_last_time = 0;
-    }else if(this->LTE->carControlState == CarControlState::REMOTE_START){
+    if(this->LTE->carControlState == CarControlState::REMOTE_START){
       this->LTE->carControlState = CarControlState::IDLE;
       this->car_status = CAR_SATUS_ENUM::R_START_BEGIN;
     }else if(this->LTE->carControlState == CarControlState::ENGIN_OFF){
@@ -129,7 +126,17 @@ void Car::car_task_loop() {
         this->remote_expire_time = this->remote_expire_time + 1000 * 60;
       }
       this->LTE->carControlState = CarControlState::IDLE;
+    }else if(this->LTE->carControlState == CarControlState::GET_CAR_STATUS){
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->car_info_send_last_time = 0;
+    }else if(this->LTE->carControlState == CarControlState::KEY_ON){
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->setKeyFobStatus(true);
+    }else if(this->LTE->carControlState == CarControlState::KEY_OFF){
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->setKeyFobStatus(false);
     }
+    
     
     if(this->car_status == CAR_SATUS_ENUM::IDLE){
       this->ecu_jerry.GET_CLU2_DATA(now, 20000, &this->clu2Data);
