@@ -22,7 +22,6 @@
 Car* twai_can_hal = nullptr;
 
 Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx_time_ms, baud) {
-
   tx.extd = 0;
   tx.rtr = 0;
   tx.ss = 0; // Always single shot
@@ -41,7 +40,9 @@ Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx
   // Start Button
   gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
   // KeyFob
-  gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT_OD);
+  gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT_OD);
+
+  vTaskDelay(500 / portTICK_PERIOD_MS);
 
 }
 
@@ -89,6 +90,7 @@ void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timesta
 }
 
 void Car::on_begin_task_done() {
+  printf("begin task done \n");
     // if(ShifterStyle::TRRS == VEHICLE_CONFIG.shifter_style) {
     //     (static_cast<ShifterTrrs*>(shifter))->update_shifter_position(now_ts);
     // }
@@ -111,18 +113,40 @@ void Car::car_task_loop() {
   while(1){
     now = esp_timer_get_time() / 1000;
 
-    if(this->LTE->carControlState == CarControlState::REMOTE_START){
+    if(this->LTE->carControlState == CarControlState::GET_CAR_STATUS){
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->car_info_send_last_time = 0;
+    }else if(this->LTE->carControlState == CarControlState::REMOTE_START){
       this->LTE->carControlState = CarControlState::IDLE;
       this->car_status = CAR_SATUS_ENUM::R_START_BEGIN;
     }else if(this->LTE->carControlState == CarControlState::ENGIN_OFF){
-        this->remote_expire_time = 5000;
-        this->remote_start_time = esp_timer_get_time() / 1000;
-        this->LTE->carControlState = CarControlState::IDLE;
-        this->car_status = CAR_SATUS_ENUM::R_STARTED;
+      this->remote_expire_time = 0;
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->car_status = CAR_SATUS_ENUM::R_STARTED;
+    }else if(this->LTE->carControlState == CarControlState::EXTEND_TIME){
+      // NOT OVER 30 Mins
+      if( (this->remote_expire_time + 1000 * 60) < 1000 * 60 * 31 ){
+        this->remote_expire_time = this->remote_expire_time + 1000 * 60;
+      }
+      this->LTE->carControlState = CarControlState::IDLE;
     }
-
+    
     if(this->car_status == CAR_SATUS_ENUM::IDLE){
-      // this->relay_handle(1);
+      this->ecu_jerry.GET_CLU2_DATA(now, 20000, &this->clu2Data);
+      // Engine OFF
+      if(this->clu2Data.CF_Clu_IGNSw == 0){
+        // send data Every 5 Min If Car IGN OFF
+        if(now > this->car_info_send_last_time + 1000 * 60 * 10 ){
+          this->car_info_send_last_time = now;
+        }
+      }else {
+        // send data Every 2 Min
+        if(now > this->car_info_send_last_time + 1000 * 60 * 2 ){
+          this->car_info_send_last_time = now;
+        }
+      }
+      this->relay_handle(1);
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
       // printf("CAR IS IN IDLE ");
       // this->LTE->mainState = MainState_t::TEST;
 
@@ -130,35 +154,47 @@ void Car::car_task_loop() {
 
       // Car State Topic
     }else if(this->car_status == CAR_SATUS_ENUM::R_START_BEGIN){
-      // Data Recieved Car Start Process Begin
-      this->setKeyFobStatus(true);
-      this->keyfob = true;
-      this->remote_start = true;
-      // ACC ON
-      this->relay_handle(1);
-      // TRYING TO START CAR
-      gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
-      gpio_set_level(GPIO_NUM_22, 1);
-      this->car_status = CAR_SATUS_ENUM::R_STARTING;
+      this->ecu_jerry.GET_EMS11_DATA(now, 500, &this->ems11Data);
+
+      // If Car is not running
+      if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300.0){
+        this->car_status = CAR_SATUS_ENUM::IDLE;
+      } else {
+        // Data Recieved Car Start Process Begin
+        this->setKeyFobStatus(true);
+        this->keyfob = true;
+        this->remote_start = true;
+        // ACC ON
+        this->relay_handle(1);
+        // TRYING TO START CAR
+        gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
+        gpio_set_level(GPIO_NUM_22, 1);
+        this->car_status = CAR_SATUS_ENUM::R_STARTING;
+      }
     }else if(this->car_status == CAR_SATUS_ENUM::R_STARTING){
       this->ecu_jerry.GET_EMS11_DATA(now, 500, &this->ems11Data);
+      this->ecu_jerry.GET_CLU2_DATA(now, 20000, &this->clu2Data);
+
       printf("\n");
       printf("RPM RAW : %llu\n", this->ems11Data.raw);
       printf("RPM RAW : %d\n", this->ems11Data.RPM);
       printf("RPM : %f\n", reverse_bytes(this->ems11Data.RPM) * 0.25);
       printf("\n");
 
-      if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300.0){
+      if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300.0 &&
+        this->clu2Data.CF_Clu_IGNSw != 0
+        ){
         gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
         gpio_set_level(GPIO_NUM_22, 0);
         // Default 15 Mins Car
-        // this->remote_expire_time = 1000 * 60 * 15 ;
-        this->remote_expire_time = 5000 ;
+        this->remote_expire_time = 1000 * 60 * 15 ;
+        // this->remote_expire_time = 5000 ;
         this->remote_start_time = esp_timer_get_time() / 1000;
         this->LTE->send_topic_mqtt("test/1234", "ENGINE_ON COMPLETE");
         this->car_status = CAR_SATUS_ENUM::R_STARTED;
       }
     }else if(this->car_status == CAR_SATUS_ENUM::R_STARTED){
+      this->car_info_send_last_time = 0;
       printf("Engine IS RUNNING\n");
       if(now > this->remote_start_time + this->remote_expire_time ){
         printf("Engine Stopping Proccess\n");
@@ -187,8 +223,10 @@ void Car::car_task_loop() {
           this->relay_handle(1);
         }
       }
+      vTaskDelay(1000 / portTICK_PERIOD_MS);
     }else if(this->car_status == CAR_SATUS_ENUM::R_STOPED){
       this->LTE->send_topic_mqtt("test/1234", "ENGINE_OFF COMPLETE");
+      this->car_info_send_last_time = 0;
       this->remote_expire_time = 0;
       this->remote_start_time = 0;
       this->car_status = CAR_SATUS_ENUM::IDLE;
@@ -348,11 +386,11 @@ void Car::setKeyFobStatus(bool status){
   
   if(status){
     printf("Smart Key on\n");
-    gpio_set_level(GPIO_NUM_21, 1);
+    gpio_set_level(GPIO_NUM_4, 1);
     this->keyfob = true;
   }else{
     printf("Smart Key off\n");
-    gpio_set_level(GPIO_NUM_21, 0);
+    gpio_set_level(GPIO_NUM_4, 0);
     this->keyfob = false;
   }
 }

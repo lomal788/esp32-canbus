@@ -6,7 +6,7 @@
 // #include "util/car/twai_base.h"
 // #include "util/car/car.h"
 
-#define UART UART_NUM_2
+#define UART UART_NUM_1
 
 
 enum class MainState_t : uint16_t {
@@ -24,6 +24,10 @@ enum class CarControlState : uint16_t {
     TEST,
     REMOTE_START,
     ENGIN_OFF,
+    EXTEND_TIME,
+    GET_CAR_STATUS,
+    KEY_ON,
+    KEY_OFF,
 };
 
 class LTE_MODEM {
@@ -39,17 +43,24 @@ class LTE_MODEM {
         
         void subscribe_mqtt(const char* nm);
         void call_sim_spam_task(void *arg);
-        void tx_task(void *arg);
+        // void tx_task(void *arg);
         void rx_mqtt_msg(const char* topicNm, const char* payLoad);
 
         [[noreturn]]
         void rx_task_loop(void);
+        [[noreturn]]
+        void tx_task_loop(void);
         [[noreturn]]
         void status_task_loop(void);
 
         static void start_rx_task(void *_this) {
             static_cast<LTE_MODEM*>(_this)->rx_task_loop();
         }
+
+        static void start_tx_task(void *_this) {
+            static_cast<LTE_MODEM*>(_this)->tx_task_loop();
+        }
+
         static void start_status_task(void *_this) {
             static_cast<LTE_MODEM*>(_this)->status_task_loop();
         }
@@ -60,6 +71,7 @@ class LTE_MODEM {
     private:
         TaskHandle_t lte_rx_task = nullptr;
         TaskHandle_t lte_status_task = nullptr;
+        bool mqtt_status = false;
         // Car** car_can_hal;
 
         // CAR_SATUS_ENUM tests = CAR_SATUS_ENUM::IDLE;

@@ -51,6 +51,7 @@ class Car: public BaseCan{
         bool remote_start = false;
         uint64_t remote_start_time = 0;
         uint64_t remote_expire_time = 0;
+        uint64_t car_info_send_last_time = 0;
         bool ingition = false;
         uint16_t batt = 0;
         int outTemp = 0;

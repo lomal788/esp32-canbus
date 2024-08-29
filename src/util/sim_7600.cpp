@@ -27,8 +27,8 @@
 static const int RX_BUF_SIZE = 1024 * 2;
 #define MAX_STR_LEN 4000
 
-#define TXD_PIN (GPIO_NUM_14)
-#define RXD_PIN (GPIO_NUM_27)
+#define TXD_PIN (GPIO_NUM_25)
+#define RXD_PIN (GPIO_NUM_14)
 
 // #define UART UART_NUM_2
 
@@ -185,7 +185,7 @@ void LTE_MODEM::init_sim(){
   ESP_ERROR_CHECK(uart_driver_install(UART, RX_BUF_SIZE * 2, 0, 0, NULL, 0));
   ESP_ERROR_CHECK(uart_param_config(UART, &uart_config));
   // ESP_ERROR_CHECK(uart_set_pin(UART, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
-  ESP_ERROR_CHECK(uart_set_pin(UART, TXD_PIN, GPIO_NUM_25, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+  ESP_ERROR_CHECK(uart_set_pin(UART, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
 
 
   // Modem Reset
@@ -552,6 +552,14 @@ void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
       this->carControlState = CarControlState::REMOTE_START;
     }else if(strncmp(payLoad, "ENGINE OFF", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::ENGIN_OFF;
+    }else if(strncmp(payLoad, "EXTEND_TIME", strlen(payLoad)) == 0){
+      this->carControlState = CarControlState::EXTEND_TIME;
+    }else if(strncmp(payLoad, "GET_CAR_SATUS", strlen(payLoad)) == 0){
+      this->carControlState = CarControlState::GET_CAR_STATUS;
+    }else if(strncmp(payLoad, "KEY ON", strlen(payLoad)) == 0){
+      this->carControlState = CarControlState::KEY_ON;
+    }else if(strncmp(payLoad, "KEY OFF", strlen(payLoad)) == 0){
+      this->carControlState = CarControlState::KEY_OFF;
     }
     
   }
@@ -617,7 +625,8 @@ void LTE_MODEM::call_sim_spam_task(void *arg){
   vTaskDelete(NULL);
 }
 
-void LTE_MODEM::tx_task(void *arg){
+[[noreturn]]
+void LTE_MODEM::tx_task_loop(){
 
   while(1){
     this->sendSimATCmd("AT+GMR");
@@ -752,7 +761,7 @@ void LTE_MODEM::rx_task_loop(){
         }
       }else if(
         strstr((const char*) rx_buffer, "+CME ERROR: SIM busy")
-        // || strstr((const char*) rx_buffer, "+CME ERROR: SIM not inserted")
+        || strstr((const char*) rx_buffer, "+CME ERROR: SIM not inserted")
         ) {
         // AT+CRESET OK change to MODE START
         // this->sendSimATCmd("AT");
