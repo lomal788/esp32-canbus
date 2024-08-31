@@ -517,7 +517,6 @@ void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
   // }
 
   if(strncmp(topicNm, "test/1234", strlen(topicNm)) == 0){
-    send_topic_mqtt("test/1234", (const char*) topicNm);
     // vTaskDelay(100 / portTICK_PERIOD_MS);
     // send_topic_mqtt("test/1234", (const char*) payLoad);
     
@@ -554,12 +553,17 @@ void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
       this->carControlState = CarControlState::ENGIN_OFF;
     }else if(strncmp(payLoad, "EXTEND_TIME", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::EXTEND_TIME;
-    }else if(strncmp(payLoad, "GET_CAR_SATUS", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "CAR STAT", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::GET_CAR_STATUS;
     }else if(strncmp(payLoad, "KEY ON", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::KEY_ON;
     }else if(strncmp(payLoad, "KEY OFF", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::KEY_OFF;
+    }else if(strncmp(payLoad, "INIT_STATUS", strlen(payLoad)) == 0){
+      this->carControlState = CarControlState::INIT_STATUS;
+    }
+    else{
+      send_topic_mqtt("test/1234", (const char*) topicNm);
     }
     
   }
@@ -586,6 +590,8 @@ char* getMqttResponse(){
 }
 
 void LTE_MODEM::send_topic_mqtt(const char* nm, const char* msg){
+
+  printf("data I receive : %s \n", msg);
 
   char* topic_cmd = (char*) malloc(100);
   sprintf(topic_cmd, "AT+CMQTTTOPIC=0,%d", strlen(nm));

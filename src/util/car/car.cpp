@@ -38,11 +38,13 @@ Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx
   // ON
   // gpio_set_direction(GPIO_NUM_18, GPIO_MODE_OUTPUT_OD);
   // Start Button
-  gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
+  // gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
   // KeyFob
-  gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT_OD);
+  // gpio_set_direction(GPIO_NUM_4, GPIO_MODE_OUTPUT_OD);
+  // gpio_set_level(GPIO_NUM_22, 1);
+  // vTaskDelay(500 / portTICK_PERIOD_MS);
 
-  vTaskDelay(500 / portTICK_PERIOD_MS);
+  this->LTE = new LTE_MODEM();
 
 }
 
@@ -91,6 +93,7 @@ void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timesta
 
 void Car::on_begin_task_done() {
   printf("begin task done \n");
+  
     // if(ShifterStyle::TRRS == VEHICLE_CONFIG.shifter_style) {
     //     (static_cast<ShifterTrrs*>(shifter))->update_shifter_position(now_ts);
     // }
@@ -103,7 +106,6 @@ void Car::on_begin_task_done() {
     }
 
   // this->LTE = new LTE_MODEM(&twai_can_hal);
-  this->LTE = new LTE_MODEM();
 }
 
 [[noreturn]]
@@ -135,25 +137,53 @@ void Car::car_task_loop() {
     }else if(this->LTE->carControlState == CarControlState::KEY_OFF){
       this->LTE->carControlState = CarControlState::IDLE;
       this->setKeyFobStatus(false);
+    }else if(this->LTE->carControlState == CarControlState::INIT_STATUS){
+      this->LTE->carControlState = CarControlState::IDLE;
+      this->car_status = CAR_SATUS_ENUM::IDLE;
     }
     
-    
     if(this->car_status == CAR_SATUS_ENUM::IDLE){
+
       this->ecu_jerry.GET_CLU2_DATA(now, 20000, &this->clu2Data);
       // Engine OFF
       if(this->clu2Data.CF_Clu_IGNSw == 0){
         // send data Every 5 Min If Car IGN OFF
-        if(now > this->car_info_send_last_time + 1000 * 60 * 10 ){
+        if(now > this->car_info_send_last_time + (1000 * 60 * 10) || this->car_info_send_last_time == 0 ){
+          vTaskDelay(100 / portTICK_PERIOD_MS);
+          this->setCarInfo();
+          char* msg = (char*)malloc(100);;
+          uint8_t rawData[7];
+          to_bytes(this->carInfo.raw, rawData);
+          // memcpy(msg, rawData, sizeof(rawData));
+          // printf("data : %s , %x , %s \n",msg, rawData[0], (char*) rawData);
+          // for(int i=0; i < sizeof(rawData); i++){
+          //   sprintf(msg, "%02x", rawData[i]);
+          //   printf("data : %s , %x \n",msg, rawData[i]);
+          // }
+          sprintf(msg, "%02x%02x%02x%02x%02x%02x%02x%02x", rawData[0], rawData[1], rawData[2], rawData[3], rawData[4], rawData[5], rawData[6], rawData[7]);
+
+          // sprintf(msg, "%08lu", rawData);
+          // printf("data : %s , %x \n",msg, rawData[0]);
+          this->LTE->send_topic_mqtt("test/1234",(const char*) msg);
           this->car_info_send_last_time = now;
+          free(msg);
         }
       }else {
         // send data Every 2 Min
-        if(now > this->car_info_send_last_time + 1000 * 60 * 2 ){
+        if(now > this->car_info_send_last_time + (1000 * 60 * 2) || this->car_info_send_last_time == 0 ){
+          vTaskDelay(100 / portTICK_PERIOD_MS);
+          this->setCarInfo();
+          char* msg = (char*)malloc(100);;
+          uint8_t rawData[7];
+          to_bytes(this->carInfo.raw, rawData);
+          sprintf(msg, "%02x%02x%02x%02x%02x%02x%02x%02x", rawData[0], rawData[1], rawData[2], rawData[3], rawData[4], rawData[5], rawData[6], rawData[7]);
+          this->LTE->send_topic_mqtt("test/1234",(const char*) msg);
           this->car_info_send_last_time = now;
+          // free(msg);
         }
       }
-      this->relay_handle(1);
-      vTaskDelay(1000 / portTICK_PERIOD_MS);
+      // this->relay_handle(1);
+      // vTaskDelay(1000 / portTICK_PERIOD_MS);
       // printf("CAR IS IN IDLE ");
       // this->LTE->mainState = MainState_t::TEST;
 
@@ -173,6 +203,7 @@ void Car::car_task_loop() {
         this->remote_start = true;
         // ACC ON
         this->relay_handle(1);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         // TRYING TO START CAR
         gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
         gpio_set_level(GPIO_NUM_22, 1);
@@ -198,11 +229,22 @@ void Car::car_task_loop() {
         // this->remote_expire_time = 5000 ;
         this->remote_start_time = esp_timer_get_time() / 1000;
         this->LTE->send_topic_mqtt("test/1234", "ENGINE_ON COMPLETE");
+        this->car_info_send_last_time = 0;
         this->car_status = CAR_SATUS_ENUM::R_STARTED;
       }
     }else if(this->car_status == CAR_SATUS_ENUM::R_STARTED){
-      this->car_info_send_last_time = 0;
       printf("Engine IS RUNNING\n");
+
+      if(now > this->car_info_send_last_time + (1000 * 60 * 2) || this->car_info_send_last_time == 0 ){
+        this->setCarInfo();
+        char* msg = (char*)malloc(100);;
+        uint8_t rawData[7];
+        to_bytes(this->carInfo.raw, rawData);
+        sprintf(msg, "%02x%02x%02x%02x%02x%02x%02x%02x", rawData[0], rawData[1], rawData[2], rawData[3], rawData[4], rawData[5], rawData[6], rawData[7]);
+        this->LTE->send_topic_mqtt("test/1234",(const char*) msg);
+        this->car_info_send_last_time = now;
+      }
+
       if(now > this->remote_start_time + this->remote_expire_time ){
         printf("Engine Stopping Proccess\n");
         // engine stop Status Start
@@ -226,7 +268,10 @@ void Car::car_task_loop() {
           this->setKeyFobStatus(false);
           this->relay_handle(1);
         } else if(this->clu2Data.CF_Clu_IGNSw == 2){
+          // ACC
           this->setKeyFobStatus(false);
+          this->relay_handle(1);
+          vTaskDelay(100 / portTICK_PERIOD_MS);
           this->relay_handle(1);
         }
       }
@@ -236,12 +281,14 @@ void Car::car_task_loop() {
       this->car_info_send_last_time = 0;
       this->remote_expire_time = 0;
       this->remote_start_time = 0;
+      this->remote_start = false;
       this->car_status = CAR_SATUS_ENUM::IDLE;
       // Car Stop Data Send
 
     }else if(this->car_status == CAR_SATUS_ENUM::M5){
       printf("m5 State \n");
       vTaskDelay(1000 / portTICK_PERIOD_MS);
+      this->remote_start = false;
       this->LTE->carControlState = CarControlState::IDLE;
       this->car_status = CAR_SATUS_ENUM::IDLE;
     }
@@ -355,7 +402,7 @@ void Car::relay_handle(int relayType){
   // Start Button
   gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
   // KeyFob
-  gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT_OD);
+  // gpio_set_direction(GPIO_NUM_10, GPIO_MODE_OUTPUT_OD);
 
   if(this->keyfob == false || this->remote_start == false){
     // return;
@@ -363,29 +410,25 @@ void Car::relay_handle(int relayType){
 
   if(relayType == 1){
     printf("ACC on\n");
-    gpio_set_level(GPIO_NUM_22, 1);
-    gpio_set_level(GPIO_NUM_10, 1);
-    vTaskDelay(100 / portTICK_PERIOD_MS);
     gpio_set_level(GPIO_NUM_22, 0);
-    gpio_set_level(GPIO_NUM_10, 0);
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+    gpio_set_level(GPIO_NUM_22, 1);
   }else if(relayType == 2){
     printf("ACC ON\n");
-    gpio_set_level(GPIO_NUM_16, 0);
-    gpio_set_level(GPIO_NUM_16, 1);
-    printf("ON ON\n");
-    gpio_set_level(GPIO_NUM_18, 0);
-    gpio_set_level(GPIO_NUM_18, 1);
+    gpio_set_level(GPIO_NUM_22, 0);
+    // printf("ON ON\n");
+    // gpio_set_level(GPIO_NUM_18, 1);
   }else if(relayType == 3){
     printf("ACC ON\n");
     // gpio_set_level(GPIO_NUM_10, 1);
-    gpio_set_level(GPIO_NUM_22, 1);
+    gpio_set_level(GPIO_NUM_22, 0);
     printf("TRYING TO START CAR\n");
     // gpio_set_level(GPIO_NUM_18, 0);
     vTaskDelay(10000 / portTICK_PERIOD_MS);
-    gpio_set_level(GPIO_NUM_22, 0);
+    gpio_set_level(GPIO_NUM_22, 1);
   }else if(relayType == 4){
     printf("Relay off\n");
-    gpio_set_level(GPIO_NUM_18, 1);
+    gpio_set_level(GPIO_NUM_22, 1);
   }
 }
 
@@ -400,6 +443,37 @@ void Car::setKeyFobStatus(bool status){
     gpio_set_level(GPIO_NUM_4, 0);
     this->keyfob = false;
   }
+}
+
+void Car::setCarInfo(){
+  EMS14_CAN ems14Data;
+  uint64_t now = esp_timer_get_time() / 1000;
+  uint16_t remoteETime = 0;
+  uint16_t remoteLTime = 0;
+
+  if(this->remote_start){
+    if(this->remote_expire_time > 999){
+      remoteETime = this->remote_expire_time;
+    }
+
+    if(this->remote_start_time + this->remote_expire_time - now > 0){
+      remoteLTime = this->remote_start_time + this->remote_expire_time - now;
+    }
+  }
+
+  this->ecu_jerry.GET_EMS14_DATA(now, 9999999 ,&ems14Data);
+  this->ecu_jerry.GET_CLU2_DATA(now, 9999999 ,&this->clu2Data);
+  this->ecu_jerry.GET_EMS11_DATA(now, 9999999 ,&this->ems11Data);
+
+  this->carInfo.SWI_IGK = this->ems11Data.SWI_IGK;
+  this->carInfo.F_N_ENG = this->ems11Data.F_N_ENG;
+  this->carInfo.RPM = reverse_bytes(this->ems11Data.RPM) * 0.25;
+  this->carInfo.CF_Clu_IGNSw = this->clu2Data.CF_Clu_IGNSw;
+  this->carInfo.VB = ems14Data.VB * 0.1015625;
+  this->carInfo.KEY_FOB = this->keyfob;
+  this->carInfo.R_M_STAT = this->remote_start;
+  this->carInfo.R_M_E_TIME = remoteETime;
+  this->carInfo.R_M_L_TIME = remoteLTime;
 }
 
 // adc_batt = adc_channel_t::ADC_CHANNEL_8

@@ -28,6 +28,7 @@ enum class CarControlState : uint16_t {
     GET_CAR_STATUS,
     KEY_ON,
     KEY_OFF,
+    INIT_STATUS,
 };
 
 class LTE_MODEM {

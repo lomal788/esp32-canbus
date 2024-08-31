@@ -21,6 +21,23 @@ enum class CAR_SATUS_ENUM : uint16_t {
     M9 = 10,
 };
 
+typedef union {
+    uint64_t raw;
+    uint8_t bytes[8];
+    struct {
+        bool PADDING_1: 1;
+        bool KEY_FOB: 1;
+        bool R_M_STAT: 1;
+        bool SWI_IGK: 1;
+        bool F_N_ENG: 1;
+        uint8_t CF_Clu_IGNSw: 3;
+        uint8_t VB: 8;
+        uint16_t RPM: 16;
+        uint16_t R_M_E_TIME: 16;
+        uint16_t R_M_L_TIME: 16;
+    } __attribute__((packed));
+} CAR_INFO;
+
 class LTE_MODEM;
 
 class Car: public BaseCan{
@@ -35,6 +52,7 @@ class Car: public BaseCan{
         void on_rx_done(uint64_t now_ts) override;
         void relay_handle(int relayType);
         void setKeyFobStatus(bool status);
+        void setCarInfo();
         
         [[noreturn]]
         void car_task_loop(void);
@@ -59,8 +77,9 @@ class Car: public BaseCan{
         int setTemp = 0;
         uint8_t counter = 0;
 
-        CLU2_CAN clu2Data;
-        EMS11_CAN ems11Data;
+        CLU2_CAN clu2Data = {0};
+        EMS11_CAN ems11Data = {0};
+        CAR_INFO carInfo = {0};
 };
 
 extern Car* twai_can_hal;
