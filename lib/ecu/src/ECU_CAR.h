@@ -15,6 +15,8 @@
 
 #define EMS11_CAN_ID 0x0316
 #define CLU2_CAN_ID 0x0690
+#define CLU1_CAN_ID 0x04F0
+#define TCU2_CAN_ID 0x0440
 #define EMS14_CAN_ID 0x0545
 #define SAS11_CAN_ID 0x02B0
 
@@ -63,6 +65,28 @@ typedef union {
 	} __attribute__((packed));
 	uint32_t get_canid(){ return CLU2_CAN_ID; }
 } CLU2_CAN;
+
+typedef union {
+	uint64_t raw;
+	uint8_t bytes[8];
+	struct {
+        uint32_t CF_Clu_Odometer: 24;
+        uint32_t __PADDING__: 32;
+        bool CF_Clu_ParkBrakeSw: 1;
+	} __attribute__((packed));
+	uint32_t get_canid(){ return CLU1_CAN_ID; }
+} CLU1_CAN;
+
+typedef union {
+	uint64_t raw;
+	uint8_t bytes[8];
+	struct {
+        uint32_t __PADDING__: 20;
+		uint32_t __PADDING1__: 32;
+        uint32_t CUR_GR: 4;
+	} __attribute__((packed));
+	uint32_t get_canid(){ return TCU2_CAN_ID; }
+} TCU2_CAN;
 
 typedef union {
 	uint64_t raw;
