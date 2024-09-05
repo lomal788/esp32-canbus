@@ -48,7 +48,7 @@ class Car: public BaseCan{
     protected:
         void on_begin_task_done() override;
         void tx_frames(uint8_t bus) override;
-        void on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) override;
+        void on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t rawData[8]) override;
         void on_rx_done(uint64_t now_ts) override;
         void relay_handle(int relayType);
         void setKeyFobStatus(bool status);
@@ -75,6 +75,7 @@ class Car: public BaseCan{
         int outTemp = 0;
         int inTemp = 0;
         int setTemp = 0;
+        uint8_t fuel_remain_rate = 0;
         uint8_t counter = 0;
 
         CLU2_CAN clu2Data = {0};

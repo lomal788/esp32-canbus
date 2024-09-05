@@ -64,7 +64,7 @@ class BaseCan {
 
         virtual void on_begin_task_done(){};
         virtual void tx_frames(uint8_t bus){};
-        virtual void on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) {};
+        virtual void on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t rawData[8]) {};
         virtual void on_rx_done(uint64_t now_ts){};
         
         bool send_messages[TWAI_BUS_SIZE] = {true, true};

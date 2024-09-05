@@ -48,7 +48,7 @@ Car::Car(const char* name, uint8_t tx_time_ms, uint32_t baud) : BaseCan(name, tx
 
 }
 
-void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t bus) {
+void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timestamp, uint8_t rawData[8]) {
   uint64_t now = esp_timer_get_time() / 1000;
 
   // printf(id+" "+data+" "+ timestamp +"\n");
@@ -75,7 +75,23 @@ void Car::on_rx_frame(uint32_t id,  uint8_t dlc, uint64_t data, uint64_t timesta
     printf("SWI_IGK : %d , F_N_ENG : %d , RPM : %f  \n", ems11Data.SWI_IGK, ems11Data.F_N_ENG, reverse_bytes(ems11Data.RPM) * 0.25);
     // "%" PRIu32 
   }
+  
+  // OBD PID
+  // rawData[0] & 0xF0
+  if (id == 0x07BB && rawData[0] == 0x21 ) {
+    this->inTemp = (rawData[3] / 2) - 40;
+    this->outTemp = (rawData[4] / 2) - 40;
 
+    printf("inTemp : %d, OutTemp = %d \n", this->inTemp, this->outTemp);
+  } else if (id == 0x7E7 && rawData[2] == 0x2F ) { // 0x7E7
+    this->fuel_remain_rate = (rawData[3] * 100) / 255;
+
+    printf("fuel Rate : %d \n",this->fuel_remain_rate);
+  } else if (id == 0x7E7 && rawData[2] == 0x42 ) { // 0x7E7 , 42 or 24 pid
+    this->batt = rawData[3] / 1000;
+
+    printf("batt : %d \n",this->fuel_remain_rate);
+  }
 
   // Rx Obd Pid
   // if(id == 0x326){
@@ -367,6 +383,52 @@ void Car::tx_frames(uint8_t bus) {
     // tx.data[2] = nrc;
 
     // esp_err_t can_tx_result = twai_transmit(&tx, 5);
+    if(reverse_bytes(this->ems11Data.RPM) * 0.25 > 300.0
+    ){
+      // IN, OUT TEMP
+      tx.identifier = 0x07B3;
+      tx.data_length_code = 8;
+      // tx.data = {0x22, 0x01, 0x22, 0x01, 0, 0, 0, 0};
+      tx.data[0] = 0x22;
+      tx.data[1] = 0x01;
+      tx.data[2] = 0x22;
+      tx.data[3] = 0x01;
+      tx.data[4] = 0x00;
+      tx.data[5] = 0x00;
+      tx.data[6] = 0x00;
+      tx.data[7] = 0x00;
+      twai_transmit(&tx, 5);
+
+      // IN, OUT TEMP
+      tx.identifier = 0x07DF;
+      tx.data_length_code = 8;
+      // tx.data = {0x02, 0x01, 0x2F, 0, 0, 0, 0, 0};
+      tx.data[0] = 0x02;
+      tx.data[1] = 0x01;
+      tx.data[2] = 0x2F;
+      tx.data[3] = 0x00;
+      tx.data[4] = 0x00;
+      tx.data[5] = 0x00;
+      tx.data[6] = 0x00;
+      tx.data[7] = 0x00;
+      twai_transmit(&tx, 5);
+
+      // BATT
+      tx.identifier = 0x07DF;
+      tx.data_length_code = 8;
+      // tx.data = {0x02, 0x01, 0x2F, 0, 0, 0, 0, 0};
+      tx.data[0] = 0x02;
+      tx.data[1] = 0x01;
+      tx.data[2] = 0x42;
+      // 42 or 24 pid
+      tx.data[3] = 0x00;
+      tx.data[4] = 0x00;
+      tx.data[5] = 0x00;
+      tx.data[6] = 0x00;
+      tx.data[7] = 0x00;
+      twai_transmit(&tx, 5);
+      
+    }
   }
 
   
