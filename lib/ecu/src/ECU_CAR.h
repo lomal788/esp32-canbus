@@ -19,6 +19,8 @@
 #define TCU2_CAN_ID 0x0440
 #define EMS14_CAN_ID 0x0545
 #define SAS11_CAN_ID 0x02B0
+#define FATC_CAN_ID 0x0350
+#define DATC12_CAN_ID 0x0042
 
 /** Number of ASA alert */
 enum class MS_ANZ_ASS_WARN_EGS52 : uint16_t {
@@ -110,6 +112,29 @@ typedef union {
 	uint32_t get_canid(){ return SAS11_CAN_ID; }
 } SAS11_CAN;
 
+typedef union {
+	uint64_t raw;
+	uint8_t bytes[8]; // 5
+	struct {
+		uint32_t __PADDING__: 32;
+		uint8_t CR_Fatc_OutTemp: 8;
+	} __attribute__((packed));
+	uint32_t get_canid(){ return FATC_CAN_ID; }
+} FATC_CAN;
+
+typedef union {
+	uint64_t raw;
+	uint8_t bytes[8]; // 5
+	struct {
+		uint32_t __PADDING__: 32;
+		uint32_t __PADDING1__: 24;
+		uint8_t CR_Datc_DrTempDispC: 8;
+	} __attribute__((packed));
+	uint32_t get_canid(){ return DATC12_CAN_ID; }
+} DATC12_CAN;
+
+
+
 class ECU_JERRY {
 	public:
         /**
@@ -136,6 +161,15 @@ class ECU_JERRY {
                 case SAS11_CAN_ID:
                     idx = 3;
                     break;
+				case CLU1_CAN_ID:
+                    idx = 4;
+                    break;
+				case FATC_CAN_ID:
+                    idx = 5;
+                    break;
+				case DATC12_CAN_ID:
+                    idx = 6;
+                    break;
                 default:
                     add = false;
                     break;
@@ -147,6 +181,33 @@ class ECU_JERRY {
             return add;
         }
         
+		bool GET_DATC12_DATA(uint64_t now, uint64_t max_expire_time, DATC12_CAN* dest) const {
+            bool ret = false;
+            if (dest != nullptr && LAST_FRAME_TIMES[6] <= now && now - LAST_FRAME_TIMES[6] < max_expire_time) {
+                dest->raw = FRAME_DATA[6];
+                ret = true;
+            }
+            return ret;
+        }
+
+		bool GET_FATC_DATA(uint64_t now, uint64_t max_expire_time, FATC_CAN* dest) const {
+            bool ret = false;
+            if (dest != nullptr && LAST_FRAME_TIMES[5] <= now && now - LAST_FRAME_TIMES[5] < max_expire_time) {
+                dest->raw = FRAME_DATA[5];
+                ret = true;
+            }
+            return ret;
+        }
+
+		bool GET_CLU1_DATA(uint64_t now, uint64_t max_expire_time, CLU1_CAN* dest) const {
+            bool ret = false;
+            if (dest != nullptr && LAST_FRAME_TIMES[4] <= now && now - LAST_FRAME_TIMES[4] < max_expire_time) {
+                dest->raw = FRAME_DATA[4];
+                ret = true;
+            }
+            return ret;
+        }
+
         bool GET_SAS11_DATA(uint64_t now, uint64_t max_expire_time, SAS11_CAN* dest) const {
             bool ret = false;
             if (dest != nullptr && LAST_FRAME_TIMES[3] <= now && now - LAST_FRAME_TIMES[3] < max_expire_time) {
@@ -181,7 +242,7 @@ class ECU_JERRY {
                 ret = true;
             }
             return ret;
-        }
+        }		
             
 	private:
 		uint64_t FRAME_DATA[10];
