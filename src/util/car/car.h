@@ -25,7 +25,7 @@ typedef union {
     uint64_t raw;
     uint8_t bytes[8];
     struct {
-        bool PADDING_1: 1;
+        bool CF_Clu_ParkBrakeSw: 1;
         bool KEY_FOB: 1;
         bool R_M_STAT: 1;
         bool SWI_IGK: 1;
@@ -37,6 +37,16 @@ typedef union {
         uint16_t R_M_L_TIME: 16;
     } __attribute__((packed));
 } CAR_INFO;
+
+typedef union {
+    uint64_t raw;
+    uint8_t bytes[8];
+    struct {
+        uint32_t CF_Clu_Odometer: 24;
+		uint8_t CR_Fatc_OutTemp: 8;
+		uint8_t CR_Datc_DrTempDispC: 8;
+    } __attribute__((packed));
+} CAR_INFO2;
 
 class LTE_MODEM;
 
@@ -53,6 +63,7 @@ class Car: public BaseCan{
         void relay_handle(int relayType);
         void setKeyFobStatus(bool status);
         void setCarInfo();
+        void sendCarInfo();
         
         [[noreturn]]
         void car_task_loop(void);
@@ -79,8 +90,14 @@ class Car: public BaseCan{
         uint8_t counter = 0;
 
         CLU2_CAN clu2Data = {0};
+        CLU1_CAN clu1Data = {0};
         EMS11_CAN ems11Data = {0};
+        FATC_CAN fatcData = {0};
+        DATC12_CAN datc12Data = {0};
+        
         CAR_INFO carInfo = {0};
+        CAR_INFO2 carInfo2 = {0};
+        
 };
 
 extern Car* twai_can_hal;

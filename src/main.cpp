@@ -42,8 +42,23 @@
 // #include "sim7600.h"
 
 extern "C" void app_main(void) {
-  // gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
-  // gpio_set_level(GPIO_NUM_22, 1);
+
+// int a = 1;
+// gpio_num_t gpios = GPIO_NUM_23;
+// while(1){
+
+//   if(a == 1){
+//     gpio_set_direction(gpios, GPIO_MODE_OUTPUT);
+//     gpio_set_level(gpios, 1);
+//     a = 0;
+//   }else{
+//     gpio_set_direction(gpios, GPIO_MODE_OUTPUT);
+//     gpio_set_level(gpios, 0);
+//     a = 1;
+//   }
+//   vTaskDelay(1500 / portTICK_PERIOD_MS);
+// }
+  
 
 	printf("%s on core %d", __func__, xPortGetCoreID());
 

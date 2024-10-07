@@ -441,7 +441,7 @@ void LTE_MODEM::init_mqtt(){
   vTaskDelay(100 / portTICK_PERIOD_MS);
   this->sendSimATCmd("AT+CMQTTSTART");
   vTaskDelay(100 / portTICK_PERIOD_MS);
-  this->sendSimATCmd("AT+CMQTTACCQ=0,\"espmqtt\"");
+  this->sendSimATCmd("AT+CMQTTACCQ=0,\"asd123\"");
   vTaskDelay(100 / portTICK_PERIOD_MS);
   
 }
@@ -456,7 +456,7 @@ void disconnect_mqtt(){
 }
 
 void LTE_MODEM::connect_mqtt_server(){
-  this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://broker.mqtt.cool:1883\",60,1");
+  this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://broker.mqtt.cool:1883\",60,1,\"asd123\",\"asd\"");
   // this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://mqtt-dashboard.com:8884\",60,1");
   
   vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -516,13 +516,13 @@ void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
   //   // send_topic_mqtt("test/1234", (const char*) trim(payLoad));
   // }
 
-  if(strncmp(topicNm, "test/1234", strlen(topicNm)) == 0){
+  if(strncmp(topicNm, "/device/asd123", strlen(topicNm)) == 0){
     // vTaskDelay(100 / portTICK_PERIOD_MS);
     // send_topic_mqtt("test/1234", (const char*) payLoad);
     
     if(strncmp(payLoad, "hello aa", strlen(payLoad)) == 0){
       // vTaskDelay(50 / portTICK_PERIOD_MS);
-      send_topic_mqtt("test/1234", "hello aa i'm aab");
+      send_topic_mqtt("/device/asd123/resp", "hello aa i'm aab");
     }else if(strncmp(payLoad, "HTTP REQUEST", strlen(payLoad)) == 0){
       // vTaskDelay(50 / portTICK_PERIOD_MS);
       // http_req();
@@ -547,23 +547,23 @@ void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
       // vTaskDelay(100 / portTICK_PERIOD_MS);
       
       // http_req();
-    }else if(strncmp(payLoad, "ENGINE ON", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "ENG/1", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::REMOTE_START;
-    }else if(strncmp(payLoad, "ENGINE OFF", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "ENG/0", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::ENGIN_OFF;
-    }else if(strncmp(payLoad, "EXTEND_TIME", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "EXT/TIME", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::EXTEND_TIME;
-    }else if(strncmp(payLoad, "CAR STAT", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "CAR/STAT", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::GET_CAR_STATUS;
-    }else if(strncmp(payLoad, "KEY ON", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "KEY/1", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::KEY_ON;
-    }else if(strncmp(payLoad, "KEY OFF", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "KEY/0", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::KEY_OFF;
-    }else if(strncmp(payLoad, "INIT_STATUS", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "RESET", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::INIT_STATUS;
     }
     else{
-      send_topic_mqtt("test/1234", (const char*) topicNm);
+      send_topic_mqtt("/device/asd123/resp", (const char*) topicNm);
     }
     
   }
@@ -810,7 +810,7 @@ void LTE_MODEM::rx_task_loop(){
         ) &&
         !strstr((const char*) rx_buffer, "+CMQTTCONNECT: 1")
       ){
-        this->subscribe_mqtt("test/1234");
+        this->subscribe_mqtt("/device/asd123");
         this->mainState = MainState_t::MODE_CONNECTED;
       }else if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
         this->connect_mqtt_server();
