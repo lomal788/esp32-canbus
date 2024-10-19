@@ -174,11 +174,13 @@ void Car::car_task_loop() {
       this->setKeyFobStatus(false);
     }else if(this->LTE->carControlState == CarControlState::INIT_STATUS){
       this->LTE->carControlState = CarControlState::IDLE;
+      // this->LTE->mainState = MainState_t::MODE_RECONNECT_INIT;
 
       this->car_info_send_last_time = 0;
       this->remote_expire_time = 0;
       this->remote_start_time = 0;
       this->remote_start = false;
+      gpio_set_direction(GPIO_NUM_22, GPIO_MODE_OUTPUT_OD);
       gpio_set_level(GPIO_NUM_22, 1);
       this->car_status = CAR_SATUS_ENUM::IDLE;
     }
@@ -369,7 +371,7 @@ void Car::tx_frames(uint8_t bus) {
   // to_bytes(dest.raw, tx.data);
 
   // to_bytes(eng_rq1_tcm_tx.raw, tx_can.data);
-  // twai_transmit(&tx, 5);
+  twai_transmit(&tx, 5);
 
   // Base 50 msg per Second
 

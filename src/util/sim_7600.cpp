@@ -456,7 +456,8 @@ void disconnect_mqtt(){
 }
 
 void LTE_MODEM::connect_mqtt_server(){
-  this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://broker.mqtt.cool:1883\",60,1,\"asd123\",\"asd\"");
+  this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://mt.lomal788.us:1883\",60,1,\"asd123\",\"asd\"");
+  // this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://broker.mqtt.cool:1883\",60,1,\"asd123\",\"asd\"");
   // this->sendSimATCmd("AT+CMQTTCONNECT=0,\"tcp://mqtt-dashboard.com:8884\",60,1");
   
   vTaskDelay(500 / portTICK_PERIOD_MS);
@@ -547,17 +548,17 @@ void LTE_MODEM::rx_mqtt_msg(const char* topicNm, const char* payLoad){
       // vTaskDelay(100 / portTICK_PERIOD_MS);
       
       // http_req();
-    }else if(strncmp(payLoad, "ENG/1", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "ENG_ON", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::REMOTE_START;
-    }else if(strncmp(payLoad, "ENG/0", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "ENG_OFF", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::ENGIN_OFF;
-    }else if(strncmp(payLoad, "EXT/TIME", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "EXT_TIME", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::EXTEND_TIME;
-    }else if(strncmp(payLoad, "CAR/STAT", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "CAR_STAT", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::GET_CAR_STATUS;
-    }else if(strncmp(payLoad, "KEY/1", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "KEY_ON", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::KEY_ON;
-    }else if(strncmp(payLoad, "KEY/0", strlen(payLoad)) == 0){
+    }else if(strncmp(payLoad, "KEY_OFF", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::KEY_OFF;
     }else if(strncmp(payLoad, "RESET", strlen(payLoad)) == 0){
       this->carControlState = CarControlState::INIT_STATUS;
@@ -591,6 +592,10 @@ char* getMqttResponse(){
 
 void LTE_MODEM::send_topic_mqtt(const char* nm, const char* msg){
 
+  if(this->mainState != MainState_t::MODE_CONNECTED){
+    return;
+  }
+  
   printf("data I receive : %s \n", msg);
 
   char* topic_cmd = (char*) malloc(100);
@@ -683,6 +688,11 @@ void LTE_MODEM::status_task_loop(){
 
         break;
       case MainState_t::MODE_CONNECTING:
+          if((esp_timer_get_time() / 1000 - startMillis) > 60 * 1000){
+            this->sendSimATCmd("AT+CMQTTCONNECT?");
+            startMillis = esp_timer_get_time() / 1000;
+          }
+
         break;
       case MainState_t::MODE_CONNECTED:
           if((esp_timer_get_time() / 1000 - startMillis) > 60 * 1000){
@@ -799,22 +809,35 @@ void LTE_MODEM::rx_task_loop(){
       if(strstr((const char*) rx_buffer, "AT+CGACT=1,1")){
         init_mqtt();
         this->mainState = MainState_t::MODE_CONNECTING;
+      }else if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
+        this->connect_mqtt_server();
+        this->mainState = MainState_t::MODE_CONNECTING;
+      }else if(strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,13")){
+        this->modem_reset();
+        this->mainState = MainState_t::MODE_START;
       }else if(strstr((const char*) rx_buffer, "+CMQTTSTART: 23") ||
       strstr((const char*) rx_buffer, "+CMQTTSTART: 0")
       ){
         this->connect_mqtt_server();
       }else if(
+          strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0")
+        && strstr((const char*) rx_buffer, "+CMQTTCONNECT: 1")
+        && !strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,")
+      ){
+        this->connect_mqtt_server();
+        this->mainState = MainState_t::MODE_CONNECTING;
+      }else if(
         (
           strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,0") ||
           strstr((const char*) rx_buffer, "+CMQTTCONNECT: 0,")
-        ) &&
-        !strstr((const char*) rx_buffer, "+CMQTTCONNECT: 1")
+        ) 
+        && strstr((const char*) rx_buffer, "+CMQTTCONNECT: 1")
+        && this->mainState != MainState_t::MODE_CONNECTED
       ){
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         this->subscribe_mqtt("/device/asd123");
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         this->mainState = MainState_t::MODE_CONNECTED;
-      }else if(strstr((const char*) rx_buffer, "+CMQTTCONNLOST")){
-        this->connect_mqtt_server();
-        this->mainState = MainState_t::MODE_CONNECTING;
       }else if(strstr((const char*) rx_buffer, "+CGPSINFO: 0")){
         this->sendSimATCmd("AT+CGPS=1,1");
         vTaskDelay(50 / portTICK_PERIOD_MS);

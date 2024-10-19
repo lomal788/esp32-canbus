@@ -67,7 +67,7 @@ extern "C" void app_main(void) {
 
   twai_can_hal = new Car("CAR", 20, 500000);
   // printf("HELLO2");
-	spi_can_init();
+	// spi_can_init();
   // vTaskDelay(100);
 
   if (!twai_can_hal->begin_tasks()) {
