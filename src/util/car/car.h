@@ -45,6 +45,7 @@ typedef union {
         uint32_t CF_Clu_Odometer: 24;
 		uint8_t CR_Fatc_OutTemp: 8;
 		uint8_t CR_Datc_DrTempDispC: 8;
+        uint32_t CUR_GR: 4;
     } __attribute__((packed));
 } CAR_INFO2;
 
@@ -94,6 +95,7 @@ class Car: public BaseCan{
         EMS11_CAN ems11Data = {0};
         FATC_CAN fatcData = {0};
         DATC12_CAN datc12Data = {0};
+        TCU2_CAN tcu2Data = {0};
         
         CAR_INFO carInfo = {0};
         CAR_INFO2 carInfo2 = {0};

@@ -574,6 +574,8 @@ void Car::setCarInfo(){
   this->ecu_jerry.GET_CLU2_DATA(now, 60000 ,&this->clu2Data);
   this->ecu_jerry.GET_EMS11_DATA(now, 60000 ,&this->ems11Data);
   this->ecu_jerry.GET_CLU1_DATA(now, 60000 ,&this->clu1Data);
+  this->ecu_jerry.GET_TCU2_DATA(now, 60000 ,&this->tcu2Data);
+  
 
   this->carInfo.CF_Clu_ParkBrakeSw = this->clu1Data.CF_Clu_ParkBrakeSw;
   this->carInfo.SWI_IGK = this->ems11Data.SWI_IGK;
@@ -594,6 +596,7 @@ void Car::setCarInfo(){
   this->carInfo2.CR_Fatc_OutTemp = this->fatcData.CR_Fatc_OutTemp;
   this->carInfo2.CR_Datc_DrTempDispC = this->datc12Data.CR_Datc_DrTempDispC;
   this->carInfo2.CF_Clu_Odometer = this->clu1Data.CF_Clu_Odometer;
+  this->carInfo2.CUR_GR = this->tcu2Data.CUR_GR;
 
 }
 
