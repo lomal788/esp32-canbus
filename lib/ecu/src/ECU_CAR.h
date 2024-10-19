@@ -170,6 +170,9 @@ class ECU_JERRY {
 				case DATC12_CAN_ID:
                     idx = 6;
                     break;
+                case TCU2_CAN_ID:
+                    idx = 7;
+                    break;
                 default:
                     add = false;
                     break;
@@ -180,7 +183,16 @@ class ECU_JERRY {
             }
             return add;
         }
-        
+
+		bool GET_TCU2_DATA(uint64_t now, uint64_t max_expire_time, TCU2_CAN* dest) const {
+            bool ret = false;
+            if (dest != nullptr && LAST_FRAME_TIMES[7] <= now && now - LAST_FRAME_TIMES[7] < max_expire_time) {
+                dest->raw = FRAME_DATA[7];
+                ret = true;
+            }
+            return ret;
+        }
+
 		bool GET_DATC12_DATA(uint64_t now, uint64_t max_expire_time, DATC12_CAN* dest) const {
             bool ret = false;
             if (dest != nullptr && LAST_FRAME_TIMES[6] <= now && now - LAST_FRAME_TIMES[6] < max_expire_time) {
